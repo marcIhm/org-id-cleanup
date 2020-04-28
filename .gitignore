@@ -1,0 +1,10 @@
+org-id-cleanup.elc
+\#*#
+.#*
+*~
+org-id-cleanup.el.backup
+ChangeLog.org.backup
+README.org.backup
+elpa
+org-id-locations-for-test
+oidclpt-ert-work.org

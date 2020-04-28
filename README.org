@@ -1,0 +1,77 @@
+* org-id-cleanup 
+
+  Interactively cleanup unreferenced IDs of org-id
+  
+  org-id-cleanup is a package for org-mode within emacs.
+
+  Read below for a description.
+
+  The current version is 1.0.0.
+
+** Table of Contents
+
+   - [[#about-this-package][About this Package]]
+   - [[#screenshot][Screenshot]]
+   - [[#files][Files]]
+   - [[#releasing-a-new-version][Releasing a new version]]
+   - [[#latest-change-log][Latest Change Log]]
+
+** About this Package
+
+*** Purpose
+
+    Interactively cleanup IDs which have been created by org-id but
+    are no longer referenced from anywhere else in org.
+
+    Normal usage of org-id does not lead to a lot of unreferenced IDs,
+    and org-id normally does not suffer from them.
+    However, some packages like org-working-set lead to such IDs during
+    normal usage; in such cases it might be helpful clean up.
+
+*** Setup
+
+    org-id-cleanup can be installed with package.el
+
+** Files
+
+*** Implementation
+
+    - org-id-cleanup.el :: The complete lisp source
+
+*** Building
+
+    - Rakefile :: Helpful Ruby-Tasks for building
+
+*** Tests
+    
+    In subdir tests.
+
+    - oidclpt.el :: ert-tests for org-id-cleanup
+    - run-tests.ps1 :: Windows command file to start an emacs, which
+                       is specifically prepared for the tests
+    - run-tests.el :: Customizations for the tests
+
+** Releasing a new version
+
+*** Testing and checking
+
+    - ert
+    - (byte-compile-file "org-id-cleanup.el")
+    - elint-current-buffer
+    - checkdoc
+    - package-lint-current-buffer ;; ignore messages about org-ws--prefix
+
+*** Preparing
+    
+    - Update Version number in org-id-cleanup.el
+    - Update Change Log in org-id-cleanup.el
+    - Check and update Commentary in org-id-cleanup.el
+    - Run rake to copy those pieces of information into 
+      README.org and ChangeLog.org
+    - git add/commit as appropriate 
+    - git tag -a -m x.y.z x.y.z ; git push ; git push --tags
+
+** Latest Change Log
+
+   See ChangeLog.org for older notes.
+
