@@ -59,7 +59,7 @@
 
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
-(defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids as used by org-id alone.")
+(defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
 (defvar org-id-cleanup--all-files nil "List of all files to be scanned while cleaning ids.")
 (defvar org-id-cleanup--unref-unattach-ids nil "List of IDs not referenced from files.  not having attachments.")
 (defvar org-id-cleanup--num-deleted-ids 0 "Number of IDs deleted.")
@@ -127,16 +127,21 @@
     
     ;; prepare list of files for some steps
     (setq org-id-cleanup--initial-files
-          (delete-dups
-	   (mapcar #'file-truename
-		   (append
-		    ;; Agenda files and all associated archives
-		    (org-agenda-files t org-id-search-archives)
-		    ;; Explicit extra files
-		    (unless (symbolp org-id-extra-files)
-		      org-id-extra-files)
-		    ;; All files known to have IDs
-		    org-id-files))))
+          (delete-consecutive-dups
+           (sort
+	    (mapcar #'file-truename
+		    (append
+		     ;; Agenda files and all associated archives
+		     (org-agenda-files t org-id-search-archives)
+		     ;; Explicit extra files
+		     (unless (symbolp org-id-extra-files)
+		       org-id-extra-files)
+		     ;; All files known to have IDs
+		     org-id-files
+                     ;; some lisp-files that may contain IDs
+                     (list user-init-file
+                           custom-file)))
+            'string<)))
 
     ;; dispatch according to step
     ;; next step will be bound to button within each previous step, so no logic here
@@ -216,9 +221,15 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
   (let ((head-of-files "--- start of extra files ---"))
     (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length files)))
     (org-id-cleanup--insert-files files)
-    (insert "\n\nPlease make sure, that this list is complete in two respects,\ni.e. includes all files that contain:\n\n - Nodes with IDs that will be removed if referenced no longer\n - References and Links to IDs\n\nPlease note: If the list above is incomplete regarding the second respect,\nthis will probably lead to IDs beeing removed, that are still referenced\nfrom a file missing in the list.")
-    
-    (insert "\nTo add files or directories to this list and only for this assistant, please ")
+
+    (insert "\n\nPlease make sure, that this list is complete, i.e. includes all files that:\n\n - Contain nodes with IDs   (which will be removed if not referenced)\n - Have References or Links to IDs   (which protect those IDs from beeing removed)\n\n(of course, most of your org-files may contain both)")
+    (insert "\n\nPlease note: If the list above is incomplete regarding the second respect,\nthis will probably lead to IDs beeing removed, that are still referenced\nfrom a file missing in the list.")
+    (fill-paragraph)
+
+    (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to mention them anywhere within your org-files.")
+    (fill-paragraph)
+
+    (insert "\n\nTo add files or directories to this list and only for this assistant, please ")
     (insert-button
      "browse" 'action
      (lambda (_)
@@ -238,7 +249,12 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
      "continue" 'action
      (lambda (_)
        ;; change global state
-       (setq org-id-cleanup--all-files (sort (delete-dups (append files (org-id-cleanup--collect-extra-files head-of-files))) 'string<))
+       (setq org-id-cleanup--all-files
+             (delete-consecutive-dups
+              (sort
+               (append files
+                       (org-id-cleanup--collect-extra-files head-of-files))
+               'string<)))
        ;; continue with next step
        (org-id-cleanup--do this-step 'next)))))
 
@@ -246,21 +262,15 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
 (defun org-id-cleanup--step-review-files (this-step files)
   "Step from `org-id--cleanup-do.
 Argument THIS-STEP contains name of current step, FILES is the list of files to review."
-  (let (pt)
-    (insert (format "Review the list of %d files that will be scanned and might be changed:\n\n" (length files)))
-    (org-id-cleanup--insert-files files)
-    (insert "\n\nWhen satisfied ")
+  (insert (format "Review the list of %d files that will be scanned; the org-file among them might be changed:\n\n" (length files)))
+  (org-id-cleanup--insert-files files)
+  (insert "\n\nWhen satisfied ")
 
-    (insert-button
-     "continue" 'action
-     (lambda (_)
-       ;; continue with next step
-       (org-id-cleanup--do this-step 'next)))
-
-    (setq pt (point))
-    (insert "\n\nPlease note, that this assistant will only recognize IDs as referenced and will refrain from deleting them, if they appear anywhere within your org-files. But if you use IDs from within your lisp-code, this will not be noticed. However, to protect such IDs it is enough to mention them anywhere within your org-files.")
-    (fill-paragraph)
-    (goto-char pt)))
+  (insert-button
+   "continue" 'action
+   (lambda (_)
+     ;; continue with next step
+     (org-id-cleanup--do this-step 'next))))
      
 
 (defun org-id-cleanup--step-collect-ids (this-step files)
@@ -271,7 +281,7 @@ Argument THIS-STEP contains name of current step, FILES is the list of files wit
         (attach 0)
         pgreporter unref unref-unattach)
     (insert (format "Now the relevant %d files will be scanned for IDs.\n\n" (length files)))
-    (insert "Any IDs, that are used for attachment directories will be kept.\n\n")
+    (insert "Any IDs, that are used for attachment directories will be kept; the same is true,\nif the node is merely tagged as having an attachment.\n\n")
     (insert "From now on, please refrain from leaving this assistant to create links to IDs, because they would not be taken into account any more.")
     (fill-paragraph)
     (insert "\n\nScan files for IDs and ")
@@ -298,7 +308,12 @@ Argument THIS-STEP contains name of current step, FILES is the list of files wit
            (let ((pos (org-id-find id)))
              (with-current-buffer  (find-file-noselect (car pos))
                (goto-char (cdr pos))
-               (if (string= (org-attach-dir-from-id id) (org-attach-dir))
+               ;; assume id is used in attachments even if only last 12 chars match
+               (if (or (string= (org-attach-dir-from-id id) (org-attach-dir))
+                       (cl-search (substring id -12) (org-attach-dir))
+                       (member "ATTACH" (org-get-tags))
+                       (member "attach" (org-get-tags))
+                       (member org-attach-auto-tag (org-get-tags)))
                    (cl-incf attach)
                  (push id unref-unattach)))))
 
