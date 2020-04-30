@@ -1,6 +1,6 @@
 ;;; oidclpt.el --- Regression Tests for org-id-cleanup.el
 
-;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2020 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; Keywords: outlines, regression-tests, elisp
@@ -48,7 +48,13 @@
 (require 'cl-lib)
 (require 'ert)
 
+(defvar oidclpt-ert-work-file (concat temporary-file-directory "oidclpt-ert-work.org"))
+(defvar oidclpt-attachment (concat temporary-file-directory "oidclpt-attachment"))
 (defvar oidclpt-work-buffer nil)
+(defvar oidclpt-ids '("53e15dce-6f28-4674-bd65-e63b516d97ac"
+		      "87512329-a204-47e5-b38c-1b22838b6f7d"
+		      "b77473f3-dba0-4b4f-9db7-3ba095d12de4"
+		      "2a3d87d0-9ad0-416b-aa22-dea96fede8b7"))
 
 ;;
 ;; All tests
@@ -59,108 +65,19 @@
     (message "Testing test setup")))
 
 
-(ert-deftest oidclpt-test-clock-into-working-set ()
+(ert-deftest oidclpt-test-assistant-from-start-to-end ()
   (oidclpt-with-test-setup
-    (unwind-protect
-	(progn
-	  (let ((org-id-cleanup-clock-in nil))
-	    (should (not (org-clock-is-active)))
-	    (oidclpt-goto "eins")
-	    (oidclpt-do "s <down>")
-	    (sleep-for 1)
-	    (should (not (org-clock-is-active)))
-	    
-	    (setq org-id-cleanup-clock-in t)
-	    (oidclpt-goto "zwei")
-	    (oidclpt-do "s <down>")
-	    (sleep-for 1)
-	    (should (org-clock-is-active))))
-      (org-clock-out))))
-
-
-(ert-deftest oidclpt-test-assistant ()
-  (oidclpt-with-test-setup
-    (setq org-id-cleanup-id nil)
-    (oidclpt-do "y e s <return> a")
-    (should org-id-cleanup-id)
-    (should (string= org-id-cleanup-id (car org-id-cleanup--ids)))))
-
-
-(ert-deftest oidclpt-test-working-set-restore ()
-  (oidclpt-with-test-setup
-    (oidclpt-goto "zwei")
-    (oidclpt-do "s")
-    (should (= (length org-id-cleanup--ids) 1))
-    (oidclpt-do "d")
-    (should (= (length org-id-cleanup--ids) 0))
-    (oidclpt-do "u")
-    (should (= (length org-id-cleanup--ids) 1))))
-
-
-(ert-deftest oidclpt-test-working-set-bottom-head ()
-  (oidclpt-with-test-setup
-    (oidclpt-goto "drei")
-    (oidclpt-do "s")
-    (beginning-of-buffer)
-    (oidclpt-do "SPC b")
-    (forward-line)
-    (should (looking-at ".* vier"))
-    (beginning-of-buffer)
-    (oidclpt-do "SPC h")
-    (should (looking-at ".* drei"))))
-
-
-(ert-deftest oidclpt-test-working-set-menu-goto ()
-  (oidclpt-with-test-setup
-    (oidclpt-goto "zwei")
-    (oidclpt-do "s")
-    (oidclpt-goto "eins")
-    (oidclpt-do "a")
-    (oidclpt-do "m <down> <return>")
-    (should (looking-at ".* zwei"))))
-
-
-(ert-deftest oidclpt-test-working-set-menu-delete ()
-  (oidclpt-with-test-setup
-    (oidclpt-goto "zwei")
-    (oidclpt-do "s")
-    (oidclpt-goto "eins")
-    (oidclpt-do "a")
-    (should (= (length org-id-cleanup--ids) 2))
-    (oidclpt-do "m <down> d q")
-    (should (= (length org-id-cleanup--ids) 1))))
-
-
-(ert-deftest oidclpt-test-double-working-set ()
-  (oidclpt-with-test-setup
-    (oidclpt-goto "zwei")
-    (oidclpt-do "s")
-    (oidclpt-goto "eins")
-    (oidclpt-do "a")
-    (oidclpt-do "SPC SPC")
-    (should (looking-at ".* zwei"))
-    (oidclpt-do "SPC")
-    (should (looking-at ".* zwei"))
-    (oidclpt-do "SPC SPC")
-    (should (looking-at ".* eins"))))
-
-
-(ert-deftest oidclpt-test-nested-working-set ()
-  (oidclpt-with-test-setup
-    (oidclpt-goto "drei")
-    (oidclpt-do "s")
-    (oidclpt-goto "vier")
-    (oidclpt-do "a")
-    (should (= (length org-id-cleanup--ids) 1))))
-
-
-(ert-deftest oidclpt-test-log-of-working-set ()
-  (oidclpt-with-test-setup
-   (oidclpt-goto "zwei")
-   (oidclpt-do "a")
-   (oidclpt-goto "eins")
-   (org-end-of-meta-data t)
-   (should (looking-at "[[:blank:]]+-"))))
+    (org-id-cleanup)
+    (oidclpt-press-button "button")
+    (oidclpt-press-button "go")
+    (goto-char (point-min))
+    (search-forward "--- start")
+    (end-of-line)
+    (setq buffer-read-only nil)
+    (insert "\n")
+    (insert oidclpt-ert-work-file) 
+    (dotimes (_ 3)
+      (oidclpt-press-button "continue"))))
 
 
 ;;
@@ -177,10 +94,6 @@
        (oidclpt-teardown-test))))
 
 
-(defun oidclpt-do (keys &optional prefix)
-  (execute-kbd-macro (kbd (concat prefix (if prefix " " "") "M-x o r g - w o r k i n g - s e t <return> " keys))))
-
-
 (defun oidclpt-setup-test ()
   (interactive)
   ;; remove any left over buffers
@@ -190,13 +103,10 @@
   (switch-to-buffer oidclpt-work-buffer)
   (basic-save-buffer)
   (org-agenda-file-to-front oidclpt-ert-work-file)
-  (oidclpt-create-work-buffer)
   (switch-to-buffer oidclpt-work-buffer)
   (org-cycle '(64))
   (delete-other-windows)
-  (end-of-buffer)
-  (setq org-id-cleanup--ids nil)
-  (setq org-id-cleanup--ids-do-not-clock nil))
+  (end-of-buffer))
 
 
 (defun oidclpt-teardown-test ()
@@ -217,21 +127,20 @@
   (setq oidclpt-work-buffer nil))
 
 
-(defun oidclpt-goto (name)
-  (org-id-goto (cdr (assoc name oidclpt-names-ids))))
+(defun oidclpt-press-button (text &optional)
+  "Press the first button with this text"
+  (let (found)
+    (goto-char (point-min))
+    (while (not found)
+      (search-forward text)
+      (backward-char)
+      (when (overlays-at (point))
+	(push-button)
+	(setq found t)))))
 
 ;;
 ;; Test data
 ;;
-
-
-(defvar oidclpt-names-ids
-  (list (cons "eins" "53e15dce-6f28-4674-bd65-e63b516d97ac")
-	(cons "zwei" "87512329-a204-47e5-b38c-1b22838b6f7d")
-	(cons "drei" "b77473f3-dba0-4b4f-9db7-3ba095d12de4")
-	(cons "vier" "2a3d87d0-9ad0-416b-aa22-dea96fede8b7"))
-  "Associating names of nodes with ids")
-
 
 (defun oidclpt-create-work-buffer ()
   (unless oidclpt-work-buffer
@@ -242,27 +151,53 @@
     (if (file-exists-p buffer-auto-save-file-name)
         (delete-file buffer-auto-save-file-name))
     (erase-buffer)
-    (insert "
+    (insert
+     (format "
 * eins
   :PROPERTIES:
-  :ID:       53e15dce-6f28-4674-bd65-e63b516d97ac
+  :ID:       %s
   :END:
+
+  This node has an attachment
+
 * zwei
   :PROPERTIES:
-  :ID:       87512329-a204-47e5-b38c-1b22838b6f7d
+  :ID:       %s
   :END:
+
 * drei
   :PROPERTIES:
-  :ID:       b77473f3-dba0-4b4f-9db7-3ba095d12de4
+  :ID:       %s
   :END:
-** vier
+
+  Reference to zwei: %s
+
+  This is the only node with an ID that should be deleted.
+
+** vier           :ATTACH:
    :PROPERTIES:
-   :ID:       2a3d87d0-9ad0-416b-aa22-dea96fede8b7
+   :ID:       %s
    :END:
-")
+
+   This node only has the attach property, but no attachment
+
+"
+	     (nth 1 oidclpt-ids)
+	     (nth 2 oidclpt-ids)
+	     (nth 3 oidclpt-ids)
+	     (nth 2 oidclpt-ids)
+	     (nth 4 oidclpt-ids)))
+    
     (org-mode)
-    (setq org-id-cleanup-id "53e15dce-6f28-4674-bd65-e63b516d97ac")
-    oidclpt-work-buffer))
+    ;; add attachment
+    (goto-char (point-min))
+    (search-forward "eins")
+    (save-excursion
+      (find-file oidclpt-attachment)
+      (erase-buffer)
+      (insert "Content of attachment\n")
+      (basic-save-buffer))
+    (org-attach-new oidclpt-attachment)))
 
 
 (provide 'oidclpt)

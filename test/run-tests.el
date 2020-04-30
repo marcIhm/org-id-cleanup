@@ -2,20 +2,19 @@
 (add-to-list 'load-path "c:/org-id-cleanup")
 (add-to-list 'load-path "c:/org-id-cleanup/test")
 
-(setq package-user-dir "c:/org-id-cleanup/elpa")
+(setq package-user-dir "c:/org/elpa")
 (package-initialize)
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
 (add-to-list 'package-archives '("org" . "https://orgmode.org/elpa/") t)
 (setq url-proxy-services nil)
 
 (require 'org)
-(require 'owst)
+(require 'oidclpt)
 (require 'paredit)
 (autoload 'paredit-mode "paredit" "Minor mode for pseudo-structurally editing Lisp code." t)
 (add-hook 'emacs-lisp-mode-hook (lambda () (paredit-mode +1)))
 
 (setq org-id-locations-file "c:/org-id-cleanup/org-id-locations-for-test")
-(setq owst-ert-work-file "c:/org-id-cleanup/owst-ert-work.org")
 
 (menu-bar-mode -1)
 (tool-bar-mode -1)
