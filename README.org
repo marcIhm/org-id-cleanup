@@ -15,6 +15,11 @@
    - [[#releasing-a-new-version][Releasing a new version]]
    - [[#latest-change-log][Latest Change Log]]
 
+** Screenshot
+
+   The screenshot shows step 2 of the assistant after pressing the go-button.
+
+   [[images/screenshot1.png]]
 ** About this Package
 
 *** Purpose
