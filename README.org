@@ -6,10 +6,11 @@
 
   Read below for a description.
 
-  The current version is 1.2.0.
+  The current version is 1.2.1.
 
 ** Table of Contents
 
+   - [[#screenshot][Screenshot]]
    - [[#about-this-package][About this Package]]
    - [[#files][Files]]
    - [[#releasing-a-new-version][Releasing a new version]]
@@ -17,15 +18,15 @@
 
 ** Screenshot
 
-   The screenshot shows step 2 of the assistant after pressing the go-button.
+   The screenshot shows step 2 of the assistant after pushing the go-button.
 
    [[images/screenshot1.png]]
 ** About this Package
 
 *** Purpose
 
-    Interactively cleanup IDs which have been created by org-id but
-    are no longer referenced from anywhere else in org.
+    Interactively cleanup unused IDs created by org-id.
+    There are IDs, that are no longer referenced from anywhere else in org.
     
     Normal usage of org-id does not lead to a lot of unreferenced IDs,
     and org-id normally does not suffer from them.

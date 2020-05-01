@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.2.0
+;; Version: 1.2.1
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -69,7 +69,7 @@
 (require 'subr-x)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.2.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.2.1" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -92,10 +92,14 @@ There are IDs, that are no longer referenced from anywhere else in org.
 
 Normal usage of org-id does not lead to a lot of unreferenced IDs,
 and org-id normally does not suffer from them.
-However, some packages (like `org-working-set') lead to such IDs during
+However, some packages (like org-working-set) lead to such IDs during
 notmal usage; in such cases it might be helpful clean up.
 
-This is version 1.2.0 of org-id-cleanup.el."
+This is version 1.2.1 of org-id-cleanup.el.
+
+This assistant is the only interactive function of this package.
+Detailed explanations are shown in each step; please read them 
+carefully and then operate the relevant buttons."
   (interactive)
   (org-id-cleanup--do nil 'backup))
 
