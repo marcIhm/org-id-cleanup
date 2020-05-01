@@ -5,7 +5,7 @@
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
 ;; Version: 1.2.0
-;; Package-Requires: ((org "9.3.0") (dash "2.12.0") (emacs "25.1"))
+;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -66,6 +66,7 @@
 (require 'button)
 (require 'org-attach)
 (require 'dash)
+(require 'subr-x)
 
 ;; Version of this package
 (defvar org-id-cleanup-version "1.2.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
