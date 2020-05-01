@@ -174,7 +174,7 @@
   :ID:       %s
   :END:
 
-  This node has an attachment
+  This node has an attachment, but the attach-tag has been removed.
 
 * zwei
   :PROPERTIES:
@@ -186,16 +186,16 @@
   :ID:       %s
   :END:
 
-  Reference to zwei: %s
+  Reference to zwei protects the id of zwei from beeing deleted: %s
 
-  This is the only node with an ID that should be deleted.
+  But itself, this is the only node with an ID that should be deleted.
 
-** vier           :ATTACH:
-   :PROPERTIES:
-   :ID:       %s
-   :END:
+* vier           :ATTACH:
+  :PROPERTIES:
+  :ID:       %s
+  :END:
 
-   This node only has the attach property, but no attachment
+  This node only has the attach-tag, but no attachment.
 
 "
 	     (nth 1 oidclpt-ids)
@@ -213,7 +213,10 @@
       (erase-buffer)
       (insert "Content of attachment\n")
       (basic-save-buffer))
-    (org-attach-new oidclpt-attachment)))
+    (save-excursion ; do not merge those two save-excursions
+      (org-attach-new oidclpt-attachment))
+    (search-forward ":ATTACH:")
+    (backward-delete-char 8)))
 
 
 (defun oidclpt--collect-ids-from-list (head)
