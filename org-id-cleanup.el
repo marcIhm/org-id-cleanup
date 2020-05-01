@@ -5,7 +5,7 @@
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
 ;; Version: 1.2.0
-;; Package-Requires: ((dash "2.17.0") (emacs "25.1"))
+;; Package-Requires: ((dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,8 +30,8 @@
 
 ;; Purpose:
 ;;
-;;  Interactively cleanup IDs which have been created by org-id but
-;;  are no longer referenced from anywhere else in org.
+;;  Interactively cleanup unused IDs created by org-id.
+;;  There are IDs, that are no longer referenced from anywhere else in org.
 ;;
 ;;  Normal usage of org-id does not lead to a lot of unreferenced IDs,
 ;;  and org-id normally does not suffer from them.
@@ -86,23 +86,22 @@
   ;; Editing after version number is fine.
   ;;
   ;; For Rake: Insert purpose here
-  "Interactively cleanup IDs which have been created by org-id but
-are no longer referenced from anywhere else in org.
+  "Interactively cleanup unused IDs created by org-id.
+There are IDs, that are no longer referenced from anywhere else in org.
 
 Normal usage of org-id does not lead to a lot of unreferenced IDs,
 and org-id normally does not suffer from them.
-However, some packages (like org-working-set) lead to such IDs during
+However, some packages (like `org-working-set') lead to such IDs during
 notmal usage; in such cases it might be helpful clean up.
 
-This is version 1.2.0 of org-id-cleanup.el.
-"
+This is version 1.2.0 of org-id-cleanup.el."
   (interactive)
   (org-id-cleanup--do nil 'backup))
 
 
 (defun org-id-cleanup--do (come-from go-to)
   "Do the work for `org-id-cleanup' Argument COME-FROM is previous step or nil, GO-TO the next one or symbol previous or next."
-  (let (step pt)
+  (let (step)
 
     ;; check arguments and compute step
     (if (and come-from
@@ -515,7 +514,7 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
 
 
 (defun org-id-cleanup--normalize-files (&rest lists)
-  "Bring a list of filenames in standard form by sorting, removing dups and mapping to true filename."
+  "Bring a list of LISTS of filenames in standard form by sorting, removing dups and mapping to true filename."
   (delete-consecutive-dups
    (sort
     (mapcar #'file-truename
