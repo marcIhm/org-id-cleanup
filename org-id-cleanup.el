@@ -5,7 +5,7 @@
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
 ;; Version: 1.2.0
-;; Package-Requires: ((dash "2.12.0") (emacs "25.1"))
+;; Package-Requires: ((org "9.3.0") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
