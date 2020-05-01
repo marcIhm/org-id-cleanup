@@ -5,7 +5,7 @@
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
 ;; Version: 1.1.0
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((dash "2.17.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -56,6 +56,7 @@
 (require 'org)
 (require 'button)
 (require 'org-attach)
+(require 'dash)
 
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
@@ -127,21 +128,17 @@
     
     ;; prepare list of files for some steps
     (setq org-id-cleanup--initial-files
-          (delete-consecutive-dups
-           (sort
-	    (mapcar #'file-truename
-		    (append
-		     ;; Agenda files and all associated archives
-		     (org-agenda-files t org-id-search-archives)
-		     ;; Explicit extra files
-		     (unless (symbolp org-id-extra-files)
-		       org-id-extra-files)
-		     ;; All files known to have IDs
-		     org-id-files
-                     ;; some lisp-files that may contain IDs
-                     (list user-init-file
-                           custom-file)))
-            'string<)))
+          (org-id-cleanup--normalize-files
+	   ;; Agenda files and all associated archives
+	   (org-agenda-files t org-id-search-archives)
+	   ;; Explicit extra files
+	   (unless (symbolp org-id-extra-files)
+	     org-id-extra-files)
+	   ;; All files known to have IDs
+	   org-id-files
+           ;; some lisp-files that may contain IDs
+           (list user-init-file
+                 custom-file)))
 
     ;; dispatch according to step
     ;; next step will be bound to button within each previous step, so no logic here
@@ -250,11 +247,9 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
      (lambda (_)
        ;; change global state
        (setq org-id-cleanup--all-files
-             (delete-consecutive-dups
-              (sort
-               (append files
-                       (org-id-cleanup--collect-extra-files head-of-files))
-               'string<)))
+             (org-id-cleanup--normalize-files
+              files
+              (org-id-cleanup--collect-extra-files head-of-files)))
        ;; continue with next step
        (org-id-cleanup--do this-step 'next)))))
 
@@ -450,7 +445,7 @@ Argument HEAD is a marker-string that precedes the list of files in buffer."
         (push file files))
        (t (error "%s is neither a file nor a directory" file)))
       (forward-line))
-    (delete-dups (mapcar #'file-truename files))))
+    files))
 
 
 (defun org-id-cleanup--collect-ids (head)
@@ -493,6 +488,16 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
   "Return number of current STEP within list of all steps (counting from 0)."
   (- (length org-id-cleanup--all-steps)
      (length (member step org-id-cleanup--all-steps))))
+
+
+(defun org-id-cleanup--normalize-files (&rest lists)
+  "Bring a list of filenames in standard form by sorting, removing dups and mapping to true filename."
+  (delete-consecutive-dups
+   (sort
+    (mapcar #'file-truename
+            (-flatten
+             lists))
+    'string<)))
 
 
 (provide 'org-id-cleanup)

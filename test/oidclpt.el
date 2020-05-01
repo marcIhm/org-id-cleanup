@@ -47,11 +47,13 @@
 (require 'org-id)
 (require 'cl-lib)
 (require 'ert)
+(require 'dash)
 
 (defvar oidclpt-ert-work-file (concat temporary-file-directory "oidclpt-ert-work.org"))
 (defvar oidclpt-attachment (concat temporary-file-directory "oidclpt-attachment"))
 (defvar oidclpt-work-buffer nil)
-(defvar oidclpt-ids '("53e15dce-6f28-4674-bd65-e63b516d97ac"
+(defvar oidclpt-ids '(""
+		      "53e15dce-6f28-4674-bd65-e63b516d97ac"
 		      "87512329-a204-47e5-b38c-1b22838b6f7d"
 		      "b77473f3-dba0-4b4f-9db7-3ba095d12de4"
 		      "2a3d87d0-9ad0-416b-aa22-dea96fede8b7"))
@@ -67,17 +69,31 @@
 
 (ert-deftest oidclpt-test-assistant-from-start-to-end ()
   (oidclpt-with-test-setup
-    (org-id-cleanup)
-    (oidclpt-press-button "button")
-    (oidclpt-press-button "go")
-    (goto-char (point-min))
-    (search-forward "--- start")
-    (end-of-line)
-    (setq buffer-read-only nil)
-    (insert "\n")
-    (insert oidclpt-ert-work-file) 
-    (dotimes (_ 3)
-      (oidclpt-press-button "continue"))))
+    (let (ids)
+	(org-id-cleanup)
+      (oidclpt-press-button "button")
+      (oidclpt-press-button "go")
+      (goto-char (point-min))
+      (search-forward "--- start")
+      (end-of-line)
+      (setq buffer-read-only nil)
+      (insert "\n")
+      (insert oidclpt-ert-work-file) 
+      (dotimes (_ 3)
+	(oidclpt-press-button "continue"))
+      (setq ids (oidclpt--collect-ids-from-list "--- List of"))
+      (should (= (length ids) 1))
+      (should (string= (nth 0 ids) (nth 3 oidclpt-ids)))
+      (oidclpt-press-button "continue")
+      (oidclpt-press-button "button")
+      (oidclpt-press-button "go")
+      (goto-char (point-min))
+      (search-forward "Assistant done.")
+      (with-current-buffer oidclpt-work-buffer
+	(setq ids (oidclpt--collect-ids-from-properties)))
+      (should (= (length ids) 3))
+      (should (not (-difference (list "" (nth 3 oidclpt-ids))
+				(-difference oidclpt-ids ids)))))))
 
 
 ;;
@@ -198,6 +214,28 @@
       (insert "Content of attachment\n")
       (basic-save-buffer))
     (org-attach-new oidclpt-attachment)))
+
+
+(defun oidclpt--collect-ids-from-list (head)
+  "Collect and return IDs from list at end of buffer."
+  (let (ids)
+    (goto-char (point-min))
+    (search-forward head)
+    (forward-line)
+    (while (< (point) (point-max))
+      (push (buffer-substring-no-properties (point) (point-at-eol)) ids)
+      (forward-line))
+    ids))
+
+
+(defun oidclpt--collect-ids-from-properties ()
+  "Collect and return IDs from properties."
+  (let (ids)
+    (goto-char (point-min))
+    (while (search-forward ":ID:" nil t)
+      (push (string-trim (buffer-substring-no-properties (point) (point-at-eol)))
+	    ids))
+    ids))
 
 
 (provide 'oidclpt)
