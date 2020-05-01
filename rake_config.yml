@@ -1,0 +1,7 @@
+elisp_source: org-id-cleanup.el
+package_name: org-id-cleanup
+copy_changelog: false
+valid_keys:
+  - Purpose
+  - Setup
+  

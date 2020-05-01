@@ -1,17 +1,16 @@
 * org-id-cleanup 
 
-  Interactively cleanup unreferenced IDs of org-id
+  Interactively cleanup unreferenced IDs of org-id.
   
   org-id-cleanup is a package for org-mode within emacs.
 
   Read below for a description.
 
-  The current version is 1.0.0.
+  The current version is 1.2.0.
 
 ** Table of Contents
 
    - [[#about-this-package][About this Package]]
-   - [[#screenshot][Screenshot]]
    - [[#files][Files]]
    - [[#releasing-a-new-version][Releasing a new version]]
    - [[#latest-change-log][Latest Change Log]]
@@ -22,15 +21,15 @@
 
     Interactively cleanup IDs which have been created by org-id but
     are no longer referenced from anywhere else in org.
-
+    
     Normal usage of org-id does not lead to a lot of unreferenced IDs,
     and org-id normally does not suffer from them.
-    However, some packages like org-working-set lead to such IDs during
-    normal usage; in such cases it might be helpful clean up.
+    However, some packages (like org-working-set) lead to such IDs during
+    notmal usage; in such cases it might be helpful clean up.
 
 *** Setup
 
-    org-id-cleanup can be installed with package.el
+    - org-id-cleanup should be installed with package.el
 
 ** Files
 
@@ -74,4 +73,19 @@
 ** Latest Change Log
 
    See ChangeLog.org for older notes.
+
+*** 1.2
+
+    - Adding tests
+    - Preparing for melpa
+  
+*** 1.1
+
+    - Respecting attachments
+    - Refactoring
+  
+*** 1.0
+
+    - Initial Version
+  
 

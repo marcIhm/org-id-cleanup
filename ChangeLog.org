@@ -1,5 +1,15 @@
-* 1.0
+* 1.2 until 2020-05-01 Fr
 
-  - Initial Release
+  - Adding tests
+  - Preparing for melpa
+
+* 1.1 until 2020-05-01 Fr
+
+  - Respecting attachments
+  - Refactoring
+
+* 1.0 until 2020-04-13 Mo
+
+  - Initial Version
 
 

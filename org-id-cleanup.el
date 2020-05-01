@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.1.0
+;; Version: 1.2.0
 ;; Package-Requires: ((dash "2.17.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -35,12 +35,21 @@
 ;;
 ;;  Normal usage of org-id does not lead to a lot of unreferenced IDs,
 ;;  and org-id normally does not suffer from them.
-;;  However, some packages like org-working-set lead to such IDs during
+;;  However, some packages (like org-working-set) lead to such IDs during
 ;;  notmal usage; in such cases it might be helpful clean up.
+;;
+;; Setup:
+;;
+;;  - org-id-cleanup should be installed with package.el
 ;;
 
 ;;; Change Log:
 
+;;   Version 1.2
+;;
+;;   - Adding tests
+;;   - Preparing for melpa
+;;
 ;;   Version 1.1
 ;;
 ;;   - Respecting attachments
@@ -58,6 +67,8 @@
 (require 'org-attach)
 (require 'dash)
 
+;; Version of this package
+(defvar org-id-cleanup-version "1.2.0" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -67,11 +78,24 @@
 (defvar org-id-cleanup--num-attach 0 "Number of IDs that are referenced by their attachment directory only.")
 (defvar org-id-cleanup--num-all-ids 0 "Number of all IDs.")
 
-
 
 ;; User-visible function and dispatch
 (defun org-id-cleanup ()
-  "Find and clean ids that are no longer used, i.e. neither referenced by links nor used for attachments."
+  ;; Do NOT edit the part of this help-text before version number. It will
+  ;; be overwritten with Commentary-section from beginning of this file.
+  ;; Editing after version number is fine.
+  ;;
+  ;; For Rake: Insert purpose here
+  "Interactively cleanup IDs which have been created by org-id but
+are no longer referenced from anywhere else in org.
+
+Normal usage of org-id does not lead to a lot of unreferenced IDs,
+and org-id normally does not suffer from them.
+However, some packages (like org-working-set) lead to such IDs during
+notmal usage; in such cases it might be helpful clean up.
+
+This is version 1.2.0 of org-id-cleanup.el.
+"
   (interactive)
   (org-id-cleanup--do nil 'backup))
 
