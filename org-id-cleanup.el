@@ -36,7 +36,7 @@
 ;;  Normal usage of org-id does not lead to a lot of unreferenced IDs,
 ;;  and org-id normally does not suffer from them.
 ;;  However, some packages (like org-working-set) lead to such IDs during
-;;  notmal usage; in such cases it might be helpful clean up.
+;;  normal usage; in such cases it might be helpful clean up.
 ;;
 ;; Setup:
 ;;
@@ -93,19 +93,21 @@ There are IDs, that are no longer referenced from anywhere else in org.
 Normal usage of org-id does not lead to a lot of unreferenced IDs,
 and org-id normally does not suffer from them.
 However, some packages (like org-working-set) lead to such IDs during
-notmal usage; in such cases it might be helpful clean up.
+normal usage; in such cases it might be helpful clean up.
 
 This is version 1.2.1 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
-Detailed explanations are shown in each step; please read them 
+Detailed explanations are shown in each step; please read them
 carefully and then operate the relevant buttons."
   (interactive)
   (org-id-cleanup--do nil 'backup))
 
 
 (defun org-id-cleanup--do (come-from go-to)
-  "Do the work for `org-id-cleanup' Argument COME-FROM is previous step or nil, GO-TO the next one or symbol previous or next."
+  "Do the work for `org-id-cleanup'.
+Argument COME-FROM is previous step or nil, GO-TO the next step or one of
+symbols 'previous or 'next."
   (let (step)
 
     ;; check arguments and compute step
@@ -201,7 +203,7 @@ carefully and then operate the relevant buttons."
 
     ;; finish buffer before leaving it to the user to press any buttons therein; see individual steps
     (recenter -1)
-    (message "Please read comments and instructions and proceed by clicking the appriopriate buttons.")
+    (message "Please read comments and instructions and proceed by clicking the appropriate buttons.")
     (setq buffer-read-only t)))
 
 
@@ -247,8 +249,8 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
     (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length files)))
     (org-id-cleanup--insert-files files)
 
-    (insert "\n\nPlease make sure, that this list is complete, i.e. includes all files that:\n\n - Contain nodes with IDs   (which will be removed if not referenced)\n - Have References or Links to IDs   (which protect those IDs from beeing removed)\n\n(of course, most of your org-files may contain both)")
-    (insert "\n\nPlease note: If the list above is incomplete regarding the second respect,\nthis will probably lead to IDs beeing removed, that are still referenced\nfrom a file missing in the list.")
+    (insert "\n\nPlease make sure, that this list is complete, i.e. includes all files that:\n\n - Contain nodes with IDs   (which will be removed if not referenced)\n - Have References or Links to IDs   (which protect those IDs from being removed)\n\n(of course, most of your org-files may contain both)")
+    (insert "\n\nPlease note: If the list above is incomplete regarding the second respect,\nthis will probably lead to IDs being removed, that are still referenced\nfrom a file missing in the list.")
     (fill-paragraph)
 
     (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to mention them anywhere within your org-files.")
@@ -357,7 +359,7 @@ Argument THIS-STEP contains name of current step."
         pt pt2)
     (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
     (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
-    (insert "You may remove IDs from the list as you like to keep them from beeing deleted.\n\n")
+    (insert "You may remove IDs from the list as you like to keep them from being deleted.\n\n")
     (insert "If satisfied ")
 
     (insert-button
@@ -381,7 +383,7 @@ Argument THIS-STEP contains name of current step."
 
 (defun org-id-cleanup--step-cleanup-ids (this-step ids)
   "Step from `org-id--cleanup-do.
-Argument THIS-STEP contains name of current step, IDS gived ids to remove."
+Argument THIS-STEP contains name of current step, IDS given ids to remove."
 
   (let ((scanned 0)
         pgreporter)
