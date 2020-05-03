@@ -1,10 +1,10 @@
-;;; org-id-cleanup.el --- Interactively cleanup unreferenced IDs of org-id     -*- lexical-binding: t; -*-
+;;; org-id-cleanup.el --- Interactively cleanup unused IDs of org-id     -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.0
+;; Version: 1.3.2
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -30,13 +30,17 @@
 
 ;; Purpose:
 ;;
-;;  Interactively cleanup unused IDs created by org-id.
-;;  There are IDs, that are no longer referenced from anywhere else in org.
+;;  Interactively cleanup unused IDs of org-id.
+;;  The term 'unused' refers to IDs, that have been created by org-id quite
+;;  regularly, but are now no longer referenced from anywhere within in org.
+;;  This might happen by deleting a link, that once referenced such an id.
 ;;
-;;  Normal usage of org-id does not lead to a lot of unreferenced IDs,
-;;  and org-id normally does not suffer from them.
-;;  However, some packages (like org-working-set) lead to such IDs during
-;;  normal usage; in such cases it might be helpful clean up.
+;;  Normal usage of org-id does not lead to a lot of such unused IDs, and
+;;  org-id normally does not suffer from them.
+;;
+;;  However, some packages (like org-working-set) lead to a larger number of
+;;  such unused IDs evend during normal usage; in such cases it might be
+;;  helpful clean up.
 ;;
 ;; Setup:
 ;;
@@ -47,7 +51,7 @@
 
 ;;   Version 1.3
 ;;
-;;   - Write a log of removed IDs
+;;   - Write a log of deleted IDs
 ;;
 ;;   Version 1.2
 ;;
@@ -74,7 +78,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.2" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -95,15 +99,19 @@
   ;; Editing after version number is fine.
   ;;
   ;; For Rake: Insert purpose here
-  "Interactively cleanup unused IDs created by org-id.
-There are IDs, that are no longer referenced from anywhere else in org.
+  "Interactively cleanup unused IDs of org-id.
+The term 'unused' refers to IDs, that have been created by org-id quite
+regularly, but are now no longer referenced from anywhere within in org.
+This might happen by deleting a link, that once referenced such an id.
 
-Normal usage of org-id does not lead to a lot of unreferenced IDs,
-and org-id normally does not suffer from them.
-However, some packages (like org-working-set) lead to such IDs during
-normal usage; in such cases it might be helpful clean up.
+Normal usage of org-id does not lead to a lot of such unused IDs, and
+org-id normally does not suffer from them.
 
-This is version 1.3.0 of org-id-cleanup.el.
+However, some packages (like org-working-set) lead to a larger number of
+such unused IDs evend during normal usage; in such cases it might be
+helpful clean up.
+
+This is version 1.3.2 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -221,7 +229,7 @@ symbols 'previous or 'next."
 Argument THIS-STEP contains name of current step."
 
   (if (not org-id-track-globally)
-      (insert "\n\nThe variable 'org-id-track-globally' is not set, therefore this assistant cannot be useful and will not continue.\n")
+      (insert "\n\nThe variable `org-id-track-globally' is not set, therefore this assistant cannot be useful and will not continue.\n")
 
     (insert "\nPlease make sure that you have a backup, if something goes wrong !\nThis assistant cannot do this for you; so please come back when done\nand press this ")
     (insert-button "button" 'action
@@ -368,11 +376,15 @@ Argument THIS-STEP contains name of current step, FILES is the list of files wit
   "Step from `org-id--cleanup-do'.
 Argument THIS-STEP contains name of current step."
   (let ((head-of-ids "--- List of IDs to be deleted ---")
-        pt pt2)
+        pt pt2 pct)
     (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
     (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
-    (insert "You may remove IDs from the list as you like to keep them from being deleted.\n\n")
-    (insert "If satisfied ")
+    (insert "You may remove IDs from the list as you like to keep them from being deleted.")
+    (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
+    (when (< pct 20)
+      (insert (format "\n\nThere are only %d IDs to be deleted among all %d IDs. This is a percentage of only %.1f %%. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
+      (fill-paragraph))
+    (insert "\n\nIf satisfied ")
 
     (insert-button
      "continue" 'action
@@ -445,7 +457,7 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
   (insert-button
    "browse" 'action
    (lambda (_) (pop-to-buffer org-id-cleanup--log-buffer)))
-  (insert "\n\n\n\nFinally you should again save all org buffers, update id locations and save them: ")
+  (insert "\n\n\nFinally you should again save all org buffers, update id locations and save them: ")
 
   (insert-button
    "go" 'action
@@ -557,7 +569,7 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
   (with-current-buffer org-id-cleanup--log-buffer
     (goto-char (point-max))
     (org-mode)
-    (insert "\n\n* Log of changes made by org-id-cleanup at ")
+    (insert "\n\n* Log of IDs deleted by org-id-cleanup at ")
     (org-insert-time-stamp nil t t)
     (insert "\n")
     (save-buffer)))
@@ -568,9 +580,9 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
   (with-current-buffer org-id-cleanup--log-buffer
     (insert "\n")
     (insert (format "  - ID :: %s\n" id))
-    (insert (format "  - Point :: %d\n" point))
-    (insert (format "  - Title :: %s\n" title))
-    (insert (format "  - Filename :: %s\n" filename))))
+    (insert (format "    - Filename :: %s\n" filename))
+    (insert (format "    - Point :: %d\n" point))
+    (insert (format "    - Title :: %s\n" title))))
 
 
 (defun org-id-cleanup--write-log ()
