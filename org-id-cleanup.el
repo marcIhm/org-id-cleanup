@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.2.1
+;; Version: 1.3.0
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -45,6 +45,10 @@
 
 ;;; Change Log:
 
+;;   Version 1.3
+;;
+;;   - Write a log of removed IDs
+;;
 ;;   Version 1.2
 ;;
 ;;   - Adding tests
@@ -67,9 +71,10 @@
 (require 'org-attach)
 (require 'dash)
 (require 'subr-x)
+(require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.2.1" "Version of `org-ẃorking-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -78,7 +83,10 @@
 (defvar org-id-cleanup--num-deleted-ids 0 "Number of IDs deleted.")
 (defvar org-id-cleanup--num-attach 0 "Number of IDs that are referenced by their attachment directory only.")
 (defvar org-id-cleanup--num-all-ids 0 "Number of all IDs.")
-
+(defvar org-id-cleanup--log-buffer-name "Log of IDs deleted by org-id-cleanup" "Name of buffer where changes will be written.")
+(defvar org-id-cleanup--log-file-name (concat (file-name-directory org-id-locations-file) "org-id-cleanup-log-of-deletions.org")
+ "Filename for log buffer; derived from value of 'org-id-locations-file'.")
+(defvar org-id-cleanup--log-buffer nil "Log buffer, once opened.")
 
 ;; User-visible function and dispatch
 (defun org-id-cleanup ()
@@ -95,7 +103,7 @@ and org-id normally does not suffer from them.
 However, some packages (like org-working-set) lead to such IDs during
 normal usage; in such cases it might be helpful clean up.
 
-This is version 1.2.1 of org-id-cleanup.el.
+This is version 1.3.0 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -211,16 +219,20 @@ symbols 'previous or 'next."
 (defun org-id-cleanup--step-backup (this-step)
   "Step from `org-id-cleanup--do'.
 Argument THIS-STEP contains name of current step."
-  (insert "\nPlease make sure that you have a backup, if something goes wrong !\nThis assistant cannot do this for you; so please come back when done\nand press this ")
-  (insert-button "button" 'action
-                 (lambda (_) (org-id-cleanup--do this-step 'next))))
+
+  (if (not org-id-track-globally)
+      (insert "\n\nThe variable 'org-id-track-globally' is not set, therefore this assistant cannot be useful and will not continue.\n")
+
+    (insert "\nPlease make sure that you have a backup, if something goes wrong !\nThis assistant cannot do this for you; so please come back when done\nand press this ")
+    (insert-button "button" 'action
+                     (lambda (_) (org-id-cleanup--do this-step 'next)))))
 
 
 (defun org-id-cleanup--step-save (this-step)
   "Step from `org-id-cleanup--do'.
 Argument THIS-STEP contains name of current step."
   (let (pt)
-
+    
     (insert "You need to save all org buffers and update id locations: ")
 
     (insert-button
@@ -372,7 +384,8 @@ Argument THIS-STEP contains name of current step."
        (org-id-cleanup--do this-step 'next)))
 
     (setq pt (point))
-    (insert "\n\n" head-of-ids "\n")
+    (insert "\n\n(deletion will not happen yet.)")
+    (insert "\n\n\n" head-of-ids "\n")
     (setq pt2 (point))
     (dolist (id org-id-cleanup--unref-unattach-ids)
       (insert id "\n"))
@@ -389,11 +402,13 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
         pgreporter)
     (insert "Please make sure, that you have not manually created new links referencing any IDs while the last two steps of this assistant were active.")
     (fill-paragraph)
+    (insert (format "\n\nFor your reference, a log of all changes will be appended to %s.\n" org-id-cleanup--log-file-name))
     (insert (format "\n\nTo REMOVE %s IDs (out of %d) UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
     
     (insert-button
      "button" 'action
      (lambda (_)
+       (org-id-cleanup--open-log)
        (setq buffer-read-only nil)
        (goto-char (point-max))
        (setq org-id-cleanup--num-deleted-ids 0)
@@ -407,11 +422,13 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
          (search-forward id)
          (unless (string= id (org-id-get))
            (error "Expected id of this node to be %s, but found %s" id (org-id-get)))
+         (org-id-cleanup--append-to-log (buffer-file-name) (point) (nth 4 (org-heading-components)) id)
          (org-delete-property "ID")
          (cl-incf org-id-cleanup--num-deleted-ids)
          (progress-reporter-update pgreporter (cl-incf scanned)))
 
        (progress-reporter-done pgreporter)
+       (org-id-cleanup--write-log)
        (sleep-for 1)
 
        ;; change global state
@@ -424,7 +441,11 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
 (defun org-id-cleanup--step-save-again ()
   "Step from `org-id--cleanup-do'."
   (insert (format "Deleted %d IDs (out of %d).\n\n" org-id-cleanup--num-deleted-ids org-id-cleanup--num-all-ids))
-  (insert "Finally you should again save all org buffers, update id locations and save them: ")
+  (insert (format "A log of all changes has been appended to %s\n" org-id-cleanup--log-file-name))
+  (insert-button
+   "browse" 'action
+   (lambda (_) (pop-to-buffer org-id-cleanup--log-buffer)))
+  (insert "\n\n\n\nFinally you should again save all org buffers, update id locations and save them: ")
 
   (insert-button
    "go" 'action
@@ -528,6 +549,34 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
             (-flatten
              lists))
     'string<)))
+
+
+(defun org-id-cleanup--open-log ()
+  "Open Log buffer."
+  (setq org-id-cleanup--log-buffer (find-file-noselect org-id-cleanup--log-file-name))
+  (with-current-buffer org-id-cleanup--log-buffer
+    (goto-char (point-max))
+    (org-mode)
+    (insert "\n\n* Log of changes made by org-id-cleanup at ")
+    (org-insert-time-stamp nil t t)
+    (insert "\n")
+    (save-buffer)))
+
+
+(defun org-id-cleanup--append-to-log (filename point title id)
+  "Append to Log buffer."
+  (with-current-buffer org-id-cleanup--log-buffer
+    (insert "\n")
+    (insert (format "  - ID :: %s\n" id))
+    (insert (format "  - Point :: %d\n" point))
+    (insert (format "  - Title :: %s\n" title))
+    (insert (format "  - Filename :: %s\n" filename))))
+
+
+(defun org-id-cleanup--write-log ()
+  "Write Log buffer to its file."
+  (with-current-buffer org-id-cleanup--log-buffer
+    (save-buffer)))
 
 
 (provide 'org-id-cleanup)

@@ -1,4 +1,8 @@
-* 1.2 until 2020-05-01 Fr
+* 1.3 until 2020-05-03 Su
+
+  - Write a log of removed IDs
+
+* 1.2 until 2020-05-03 Su
 
   - Adding tests
   - Preparing for melpa

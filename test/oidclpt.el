@@ -93,7 +93,10 @@
 	(setq ids (oidclpt--collect-ids-from-properties)))
       (should (= (length ids) 3))
       (should (not (-difference (list "" (nth 3 oidclpt-ids))
-				(-difference oidclpt-ids ids)))))))
+				(-difference oidclpt-ids ids))))
+      (with-current-buffer org-id-cleanup--log-buffer
+	(goto-char (point-min))
+	(search-forward (nth 3 oidclpt-ids))))))
 
 
 ;;
@@ -112,6 +115,11 @@
 
 (defun oidclpt-setup-test ()
   (interactive)
+  ;; erase log file of deletions
+  (setq org-id-cleanup--log-file-name (concat temporary-file-directory "oidclpt-cleanup-log-of-deletions.org"))
+  (find-file org-id-cleanup--log-file-name)
+  (erase-buffer)
+  (save-buffer)
   ;; remove any left over buffers
   (oidclpt-remove-work-buffers)
   ;; create them new
