@@ -1,4 +1,4 @@
-* 1.3 until 2020-05-03 Su
+* 1.3 until 2020-05-05 Tu
 
   - Write a log of deleted IDs
 

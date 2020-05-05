@@ -1,4 +1,4 @@
-;;; org-id-cleanup.el --- Interactively cleanup unused IDs of org-id     -*- lexical-binding: t; -*-
+;;; org-id-cleanup.el --- Interactively clean up unused IDs of org-id     -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020 Free Software Foundation, Inc.
 
@@ -30,21 +30,21 @@
 
 ;; Purpose:
 ;;
-;;  Interactively cleanup unused IDs of org-id.
-;;  The term 'unused' refers to IDs, that have been created by org-id quite
+;;  Interactively clean up unused IDs of org-id.
+;;  The term 'unused' refers to IDs, that have been created by org-id 
 ;;  regularly, but are now no longer referenced from anywhere within in org.
-;;  This might happen by deleting a link, that once referenced such an id.
+;;  This might e.g. happen by deleting a link, that once referenced such an id.
 ;;
 ;;  Normal usage of org-id does not lead to a lot of such unused IDs, and
-;;  org-id normally does not suffer from them.
+;;  org-id does not suffer much from them.
 ;;
-;;  However, some packages (like org-working-set) lead to a larger number of
-;;  such unused IDs evend during normal usage; in such cases it might be
-;;  helpful clean up.
+;;  However, some usage patterns or packages (like org-working-set) may
+;;  produce a larger number of such unused IDs; in such cases it might be
+;;  helpful to clean up with org-id-cleanup.
 ;;
 ;; Setup:
 ;;
-;;  - org-id-cleanup should be installed with package.el
+;;  org-id-cleanup should be installed with package.el
 ;;
 
 ;;; Change Log:
@@ -99,17 +99,17 @@
   ;; Editing after version number is fine.
   ;;
   ;; For Rake: Insert purpose here
-  "Interactively cleanup unused IDs of org-id.
-The term 'unused' refers to IDs, that have been created by org-id quite
+  "Interactively clean up unused IDs of org-id.
+The term 'unused' refers to IDs, that have been created by org-id 
 regularly, but are now no longer referenced from anywhere within in org.
-This might happen by deleting a link, that once referenced such an id.
+This might e.g. happen by deleting a link, that once referenced such an id.
 
 Normal usage of org-id does not lead to a lot of such unused IDs, and
-org-id normally does not suffer from them.
+org-id does not suffer much from them.
 
-However, some packages (like org-working-set) lead to a larger number of
-such unused IDs evend during normal usage; in such cases it might be
-helpful clean up.
+However, some usage patterns or packages (like org-working-set) may
+produce a larger number of such unused IDs; in such cases it might be
+helpful to clean up with org-id-cleanup.
 
 This is version 1.3.2 of org-id-cleanup.el.
 
@@ -420,7 +420,7 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
     (insert-button
      "button" 'action
      (lambda (_)
-       (org-id-cleanup--open-log)
+       (org-id-cleanup--open-log (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids)
        (setq buffer-read-only nil)
        (goto-char (point-max))
        (setq org-id-cleanup--num-deleted-ids 0)
@@ -563,7 +563,7 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
     'string<)))
 
 
-(defun org-id-cleanup--open-log ()
+(defun org-id-cleanup--open-log (num-to-be-deleted num-all)
   "Open Log buffer."
   (setq org-id-cleanup--log-buffer (find-file-noselect org-id-cleanup--log-file-name))
   (with-current-buffer org-id-cleanup--log-buffer
@@ -571,7 +571,8 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
     (org-mode)
     (insert "\n\n* Log of IDs deleted by org-id-cleanup at ")
     (org-insert-time-stamp nil t t)
-    (insert "\n")
+    (insert "\n\n")
+    (insert (format "  Deleting %d IDs out of %d:" num-to-be-deleted num-all))
     (save-buffer)))
 
 
