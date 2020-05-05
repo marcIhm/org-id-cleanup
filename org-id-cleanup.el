@@ -273,7 +273,10 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
     (insert "\n\nPlease note: If the list above is incomplete regarding the second respect,\nthis will probably lead to IDs being removed, that are still referenced\nfrom a file missing in the list.")
     (fill-paragraph)
 
-    (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to mention them anywhere within your org-files.")
+    (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to list them anywhere within your org-files.")
+    (fill-paragraph)
+
+    (insert "\n\nFinally, you might have the habit of using IDs completely outside of org (e.g. in your calendar); such use cannot be noticed by this package, and if there are no other references from within org, such IDs will be deleted. But again, to protect these IDs, it is enough to list them anywhere within your org-files.")
     (fill-paragraph)
 
     (insert "\n\nTo add files or directories to this list and only for this assistant, please ")
