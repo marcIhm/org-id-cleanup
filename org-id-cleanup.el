@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.2
+;; Version: 1.3.3
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -78,7 +78,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.2" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.3" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -111,7 +111,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.3.2 of org-id-cleanup.el.
+This is version 1.3.3 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -158,6 +158,9 @@ symbols 'previous or 'next."
     ;; common controls
     (when (eq step 'backup)
       (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the return-key or with the mouse.")
+      (fill-paragraph)
+      (insert "\n\n")
+      (insert "The line of steps at the top of this window shows the progress within this assistant. No IDs will be deleted unless you confirm so in step 'cleanup-ids'")
       (fill-paragraph)
       (insert "\n\n"))
     (insert (format "Step %d of %s: %s"
