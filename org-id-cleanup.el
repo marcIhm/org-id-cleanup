@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.3
+;; Version: 1.3.4
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -78,7 +78,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.3" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.4" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -111,7 +111,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.3.3 of org-id-cleanup.el.
+This is version 1.3.4 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -440,7 +440,7 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
          (search-forward id)
          (unless (string= id (org-id-get))
            (error "Expected id of this node to be %s, but found %s" id (org-id-get)))
-         (org-id-cleanup--append-to-log (buffer-file-name) (point) (nth 4 (org-heading-components)) id)
+         (org-id-cleanup--append-to-log id (buffer-file-name) (point) (-concat (org-get-outline-path) (list (nth 4 (org-heading-components)))))
          (org-delete-property "ID")
          (cl-incf org-id-cleanup--num-deleted-ids)
          (progress-reporter-update pgreporter (cl-incf scanned)))
@@ -578,18 +578,20 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
     (insert "\n\n* Log of IDs deleted by org-id-cleanup at ")
     (org-insert-time-stamp nil t t)
     (insert "\n\n")
-    (insert (format "  Deleting %d IDs out of %d:" num-to-be-deleted num-all))
+    (insert (format "  Deleting %d IDs out of %d.\n" num-to-be-deleted num-all))
     (save-buffer)))
 
 
-(defun org-id-cleanup--append-to-log (filename point title id)
+(defun org-id-cleanup--append-to-log (id filename point path)
   "Append to Log buffer."
   (with-current-buffer org-id-cleanup--log-buffer
     (insert "\n")
     (insert (format "  - ID :: %s\n" id))
     (insert (format "    - Filename :: %s\n" filename))
     (insert (format "    - Point :: %d\n" point))
-    (insert (format "    - Title :: %s\n" title))))
+    (insert "    - Path to node:\n")
+    (dolist (ti path)
+      (insert (format "      - %s\n" ti)))))
 
 
 (defun org-id-cleanup--write-log ()
