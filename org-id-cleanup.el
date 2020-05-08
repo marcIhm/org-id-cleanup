@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.4
+;; Version: 1.3.5
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -78,7 +78,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.4" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.5" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -111,7 +111,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.3.4 of org-id-cleanup.el.
+This is version 1.3.5 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -385,10 +385,10 @@ Argument THIS-STEP contains name of current step."
         pt pt2 pct)
     (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
     (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
-    (insert "You may remove IDs from the list as you like to keep them from being deleted.")
+    (insert "You may remove IDs from the list as you like to keep them from being deleted.\nUsual editing commands (e.g. C-k) apply.")
     (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
     (when (< pct 20)
-      (insert (format "\n\nThere are only %d IDs to be deleted among all %d IDs. This is a percentage of only %.1f %%. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
+      (insert (format "\n\nThere are %d IDs to be deleted among total %d. This is a percentage of %.1f %% only. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
       (fill-paragraph))
     (insert "\n\nIf satisfied ")
 
@@ -417,11 +417,11 @@ Argument THIS-STEP contains name of current step."
 Argument THIS-STEP contains name of current step, IDS given ids to remove."
 
   (let ((scanned 0)
-        pgreporter)
+        pgreporter pt)
     (insert "Please make sure, that you have not manually created new links referencing any IDs while the last two steps of this assistant were active.")
     (fill-paragraph)
     (insert (format "\n\nFor your reference, a log of all changes will be appended to %s.\n" org-id-cleanup--log-file-name))
-    (insert (format "\n\nTo REMOVE %s IDs (out of %d) UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
+    (insert (propertize (format "\n\n  >>>  To REMOVE %s IDs out of %d UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids) 'face 'org-warning))
     
     (insert-button
      "button" 'action
@@ -453,7 +453,15 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
        (setq org-id-cleanup--unref-unattach-ids nil)
 
        ;; continue with next step
-       (org-id-cleanup--do this-step 'next)))))
+       (org-id-cleanup--do this-step 'next)))
+    (insert (propertize "  <<<" 'face 'org-warning))
+    (setq pt (point))
+    (insert "\n\n\nOr, to review those IDs, go ")
+    (insert-button
+     "back" 'action
+     (lambda (_) (org-id-cleanup--do this-step 'previous)))
+    (insert "\n")
+    (goto-char pt)))
 
 
 (defun org-id-cleanup--step-save-again ()
@@ -543,7 +551,8 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
          (marker (org-id-find id t)))
     (unless marker
       (error "Cannot find ID %s" id))
-    (pop-to-buffer (marker-buffer marker))
+    (delete-other-windows)
+    (pop-to-buffer (marker-buffer marker) '(display-buffer-below-selected (inhibit-same-window . t)) t)
     (goto-char marker)
     (search-forward id)
     (beginning-of-line)
