@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.6
+;; Version: 1.3.7
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -78,7 +78,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.6" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.7" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -87,7 +87,7 @@
 (defvar org-id-cleanup--num-deleted-ids 0 "Number of IDs deleted.")
 (defvar org-id-cleanup--num-attach 0 "Number of IDs that are referenced by their attachment directory only.")
 (defvar org-id-cleanup--num-all-ids 0 "Number of all IDs.")
-(defvar org-id-cleanup--log-buffer-name "Log of IDs deleted by org-id-cleanup" "Name of buffer where changes will be written.")
+(defvar org-id-cleanup--log-buffer-name "Log of IDs deleted by org-id-cleanup" "Name of buffer where log changes will be written.")
 (defvar org-id-cleanup--log-file-name (concat (file-name-directory org-id-locations-file) "org-id-cleanup-log-of-deletions.org")
  "Filename for log buffer; derived from value of 'org-id-locations-file'.")
 (defvar org-id-cleanup--log-buffer nil "Log buffer, once opened.")
@@ -111,7 +111,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.3.6 of org-id-cleanup.el.
+This is version 1.3.7 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -419,8 +419,11 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
         pgreporter pt)
     (insert "Please make sure, that you have not manually created new links referencing any IDs while the last two steps of this assistant were active.")
     (fill-paragraph)
-    (insert (format "\n\nFor your reference, a log of all changes will be appended to %s.\n" org-id-cleanup--log-file-name))
-    (insert (propertize (format "\n\n  >>>  To REMOVE %s IDs out of %d UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids) 'face 'org-warning))
+    (insert
+     (format "\n\nFor your reference, a log of all changes will be appended to %s.\n" org-id-cleanup--log-file-name)
+     "This log will contain sufficient information (id, filename, point and outline path) to manually restore selected IDs later; you may browse it before saving your files in the last step.")
+    (fill-paragraph)
+    (insert (propertize (format "\n\n\n  >>>  To REMOVE %s IDs out of %d UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids) 'face 'org-warning))
     
     (insert-button
      "button" 'action
@@ -465,12 +468,14 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
 
 (defun org-id-cleanup--step-save-again ()
   "Step from `org-id--cleanup-do'."
-  (insert (format "Deleted %d IDs (out of %d).\n\n" org-id-cleanup--num-deleted-ids org-id-cleanup--num-all-ids))
+  (insert (format "\n  Deleted %d IDs (out of %d).\n\n\n" org-id-cleanup--num-deleted-ids org-id-cleanup--num-all-ids))
   (insert (format "A log of all changes has been appended to %s\n" org-id-cleanup--log-file-name))
+  (insert "\nYou may want to ")
   (insert-button
    "browse" 'action
    (lambda (_) (pop-to-buffer org-id-cleanup--log-buffer)))
-  (insert "\n\n\nFinally you should again save all org buffers, update id locations and save them: ")
+  (insert " this file to see, what has been removed from your org-buffers but not saved yet.\n")
+  (insert "\n\n\nFinally, if satisfied, you should again save all org buffers, update id locations and save them: ")
 
   (insert-button
    "go" 'action
