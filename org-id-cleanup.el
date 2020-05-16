@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.7
+;; Version: 1.3.8
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -31,7 +31,7 @@
 ;; Purpose:
 ;;
 ;;  Interactively clean up unused IDs of org-id.
-;;  The term 'unused' refers to IDs, that have been created by org-id 
+;;  The term 'unused' refers to IDs, that have been created by org-id
 ;;  regularly, but are now no longer referenced from anywhere within in org.
 ;;  This might e.g. happen by deleting a link, that once referenced such an id.
 ;;
@@ -78,7 +78,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.7" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.3.8" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
@@ -100,7 +100,7 @@
   ;;
   ;; For Rake: Insert purpose here
   "Interactively clean up unused IDs of org-id.
-The term 'unused' refers to IDs, that have been created by org-id 
+The term 'unused' refers to IDs, that have been created by org-id
 regularly, but are now no longer referenced from anywhere within in org.
 This might e.g. happen by deleting a link, that once referenced such an id.
 
@@ -111,7 +111,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.3.7 of org-id-cleanup.el.
+This is version 1.3.8 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -242,23 +242,22 @@ Argument THIS-STEP contains name of current step."
 (defun org-id-cleanup--step-save (this-step)
   "Step from `org-id-cleanup--do'.
 Argument THIS-STEP contains name of current step."
-  (let (pt)
-    
-    (insert "You need to save all org buffers and update org-id locations: ")
+  
+  (insert "You need to save all org buffers and update org-id locations: ")
 
-    (insert-button
-     "go" 'action
-     (lambda (_)
-       (goto-char (point-max))
-       (setq buffer-read-only nil)
-       (insert "\n\nSaving buffers ... ")
-       (redisplay)
-       (org-save-all-org-buffers)
-       (insert "done\nUpdating id locations ... ")
-       (redisplay)
-       (org-id-update-id-locations)
-       ;; continue with next step
-       (org-id-cleanup--do this-step 'next)))))
+  (insert-button
+   "go" 'action
+   (lambda (_)
+     (goto-char (point-max))
+     (setq buffer-read-only nil)
+     (insert "\n\nSaving buffers ... ")
+     (redisplay)
+     (org-save-all-org-buffers)
+     (insert "done\nUpdating id locations ... ")
+     (redisplay)
+     (org-id-update-id-locations)
+     ;; continue with next step
+     (org-id-cleanup--do this-step 'next))))
 
 
 (defun org-id-cleanup--step-complete-files (this-step files)
@@ -583,7 +582,8 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
 
 
 (defun org-id-cleanup--open-log (num-to-be-deleted num-all)
-  "Open Log buffer."
+  "Open Log buffer.
+NUM-TO-BE-DELETED and NUM-ALL used for explanation."
   (setq org-id-cleanup--log-buffer (find-file-noselect org-id-cleanup--log-file-name))
   (with-current-buffer org-id-cleanup--log-buffer
     (goto-char (point-max))
@@ -596,7 +596,8 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
 
 
 (defun org-id-cleanup--append-to-log (id filename point path)
-  "Append to Log buffer."
+  "Append to Log buffer.
+ID, FILENAME, POINT and PATH specify detailed location of the id deleted."
   (with-current-buffer org-id-cleanup--log-buffer
     (insert "\n")
     (insert (format "  - ID :: %s\n" id))

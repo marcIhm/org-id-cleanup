@@ -1,4 +1,4 @@
-* 1.3 until 2020-05-09 Sa
+* 1.3 until 2020-05-16 Sa
 
   - Write a log of deleted IDs
 
