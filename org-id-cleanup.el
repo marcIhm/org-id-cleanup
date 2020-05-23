@@ -1,10 +1,10 @@
-;;; org-id-cleanup.el --- Interactively find and clean up unused IDs of org-id     -*- lexical-binding: t; -*-
+;;; org-id-cleanup.el --- Interactively find, present and maybe clean up unused IDs of org-id     -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.3.8
+;; Version: 1.4.0
 ;; Package-Requires: ((org "9.2.6") (dash "2.12.0") (emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -49,6 +49,12 @@
 
 ;;; Change Log:
 
+;;   Version 1.4
+;;
+;;   - Clarification regarding archives
+;;   - Rely ony org-id-files
+;;   - Refactoring
+;;
 ;;   Version 1.3
 ;;
 ;;   - Write a log of deleted IDs
@@ -78,12 +84,12 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.3.8" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.4.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
-(defvar org-id-cleanup--initial-files nil "List of files to be scanned while cleaning ids without user added files.")
-(defvar org-id-cleanup--all-files nil "List of all files to be scanned while cleaning ids.")
-(defvar org-id-cleanup--unref-unattach-ids nil "List of IDs not referenced from files.  not having attachments.")
+(defvar org-id-cleanup--current-step nil "Current step in assistant.")
+(defvar org-id-cleanup--files nil "List of all files to be scanned while cleaning ids.")
+(defvar org-id-cleanup--unref-unattach-ids nil "List of IDs not referenced from files and not having attachments.  Candidates for deletion.")
 (defvar org-id-cleanup--num-deleted-ids 0 "Number of IDs deleted.")
 (defvar org-id-cleanup--num-attach 0 "Number of IDs that are referenced by their attachment directory only.")
 (defvar org-id-cleanup--num-all-ids 0 "Number of all IDs.")
@@ -99,7 +105,7 @@
   ;; Editing after version number is fine.
   ;;
   ;; For Rake: Insert purpose here
-  "Interactively clean up unused IDs of org-id.
+  "Interactively find and clean up unused IDs of org-id.
 The term 'unused' refers to IDs, that have been created by org-id
 regularly, but are now no longer referenced from anywhere within in org.
 This might e.g. happen by deleting a link, that once referenced such an id.
@@ -111,137 +117,85 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.3.8 of org-id-cleanup.el.
+This is version 1.4.0 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
 carefully and then operate the relevant buttons."
   (interactive)
-  (org-id-cleanup--do nil 'backup))
+  (org-id-cleanup--do 'backup))
 
 
-(defun org-id-cleanup--do (come-from go-to)
+(defun org-id-cleanup--do (go-to)
   "Do the work for `org-id-cleanup'.
-Argument COME-FROM is previous step or nil, GO-TO the next step or one of
-symbols 'previous or 'next."
-  (let (step)
+GO-TO the next step or one of symbols 'previous or 'next."
 
-    ;; check arguments and compute step
-    (if (and come-from
-             (not (member come-from org-id-cleanup--all-steps)))
-        (error "Internal error with come-from: %s" come-from))
-    (unless (if come-from
-                (member go-to '(previous next))
-              (member go-to org-id-cleanup--all-steps))
-      (error "Internal error with go-to: %s" go-to))
-    (setq step
-          (if come-from
-              (nth (+ (if (eq go-to 'next) +1 -1)
-                      (org-id-cleanup--step-to-num come-from)) org-id-cleanup--all-steps)
-            go-to))
-    (unless step (error "Internal error with step, come-from, go-to: %s/%s/%s" step come-from go-to))
-    
-    ;; prepare buffer
-    (pop-to-buffer-same-window (get-buffer-create "*Assistant for deleting IDs*"))
-    (setq buffer-read-only nil)
-    (delete-other-windows)
-    (erase-buffer)
-    ;; breadcrumbs
-    (let ((in-past-steps t))
-      (dolist (st org-id-cleanup--all-steps)
-        (insert (propertize (format "%s - " (symbol-name st)) 'face (if in-past-steps nil 'org-agenda-dimmed-todo-face)))
-        (if (eq st step) (setq in-past-steps nil))))
-    (backward-delete-char 3)
-    
-    (insert "\n\nThis assistant helps to clean up IDs from your org-files, it tries to remove only IDs, that are not referenced any longer.\n\n")
+  ;; check arguments and compute next step
+  (setq org-id-cleanup--current-step
+        (if (member go-to '(previous next))
+            (nth (+ (if (eq go-to 'next) +1 -1)
+                    (org-id-cleanup--step-to-num))
+                 org-id-cleanup--all-steps)
+          go-to))
+  
+  ;; prepare buffer
+  (pop-to-buffer-same-window (get-buffer-create "*Assistant for deleting IDs*"))
+  (setq buffer-read-only nil)
+  (delete-other-windows)
+  (erase-buffer)
+  ;; breadcrumbs
+  (dolist (st org-id-cleanup--all-steps)
+    (insert (propertize (format "%s - " (symbol-name st))
+                        'face (if (<= (org-id-cleanup--step-to-num st)
+                                      (org-id-cleanup--step-to-num))
+                                  'org-agenda-dimmed-todo-face nil))))
+  (backward-delete-char 3)
+  
+  (insert "\n\nThis assistant helps to clean up IDs from your org-files, it tries to remove only IDs, that are not referenced any longer.\n\n")
 
-    ;; common controls
-    (when (eq step 'backup)
-      (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the return-key or with the mouse.")
-      (fill-paragraph)
-      (insert "\n\n")
-      (insert "The line of steps at the top of this window shows the progress within this assistant. No IDs will be deleted unless you confirm so in step 'cleanup-ids'")
-      (fill-paragraph)
-      (insert "\n\n"))
-    (insert (format "Step %d of %s: %s"
-                    (1+ (org-id-cleanup--step-to-num step))
-                    (length org-id-cleanup--all-steps)
-                    (symbol-name step)))
-    (when (> (org-id-cleanup--step-to-num step) 0)
-      (insert "   (or back to ")
-      (insert-button
-       (symbol-name (nth (1- (org-id-cleanup--step-to-num step)) org-id-cleanup--all-steps)) 'action
-       (lambda (_) (org-id-cleanup--do step 'previous)))
-      (insert ")"))
+  ;; common controls
+  (when (eq org-id-cleanup--current-step (cl-first org-id-cleanup--all-steps))
+    (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the return-key or with the mouse.")
+    (fill-paragraph)
     (insert "\n\n")
-    
-    ;; prepare list of files for some steps
-    (setq org-id-cleanup--initial-files
-          (org-id-cleanup--normalize-files
-	   ;; Agenda files and all associated archives
-	   (org-agenda-files t org-id-search-archives)
-	   ;; Explicit extra files
-	   (unless (symbolp org-id-extra-files)
-	     org-id-extra-files)
-	   ;; All files known to have IDs
-	   org-id-files
-           ;; some lisp-files that may contain IDs
-           (list user-init-file
-                 custom-file)))
+    (insert "The line of steps at the top of this window shows the progress within this assistant. No IDs will be deleted unless you confirm so in step 'cleanup-ids'")
+    (fill-paragraph)
+    (insert "\n\n"))
+  (insert (format "Step %d of %s: %s"
+                  (1+ (org-id-cleanup--step-to-num))
+                  (length org-id-cleanup--all-steps)
+                  (symbol-name org-id-cleanup--current-step)))
+  (when (> (org-id-cleanup--step-to-num) 0)
+    (insert "   (or back to ")
+    (insert-button
+     (symbol-name (nth (1- (org-id-cleanup--step-to-num)) org-id-cleanup--all-steps)) 'action
+     (lambda (_) (org-id-cleanup--do 'previous)))
+    (insert ")"))
+  (insert "\n\n")
+  
+  ;; dispatch according to step
+  (funcall (intern (concat "org-id-cleanup--step-" (symbol-name org-id-cleanup--current-step))))
 
-    ;; dispatch according to step
-    ;; next step will be bound to button within each previous step, so no logic here
-    (cond
-
-     ((eq step 'backup)
-      (org-id-cleanup--step-backup step))
-
-     ((eq step 'save)
-      (org-id-cleanup--step-save step))
-
-     ((eq step 'complete-files)
-      (org-id-cleanup--step-complete-files step org-id-cleanup--initial-files))
-
-     ((eq step 'review-files)
-      (org-id-cleanup--step-review-files step org-id-cleanup--all-files))
-
-     ((eq step 'collect-ids)
-      (org-id-cleanup--step-collect-ids step org-id-cleanup--all-files))
-
-     ((eq step 'review-ids)
-      (org-id-cleanup--step-review-ids step))
-     
-     ((eq step 'cleanup-ids)
-      (org-id-cleanup--step-cleanup-ids step org-id-cleanup--unref-unattach-ids))
-
-     ((eq step 'save-again)
-      (org-id-cleanup--step-save-again))
-
-     (t
-      (error "Step %s not supported" step)))
-
-    ;; finish buffer before leaving it to the user to press any buttons therein; see individual steps
-    (recenter -1)
-    (message "Please read comments and instructions and proceed by clicking the appropriate buttons.")
-    (setq buffer-read-only t)))
+  ;; finish buffer before leaving it to the user to press any buttons therein; see individual steps
+  (recenter -1)
+  (message "Please read comments and instructions and proceed by clicking the appropriate buttons.")
+  (setq buffer-read-only t))
 
 
 ;; Individual steps
-(defun org-id-cleanup--step-backup (this-step)
-  "Step from `org-id-cleanup--do'.
-Argument THIS-STEP contains name of current step."
+(defun org-id-cleanup--step-backup ()
+  "Step from `org-id-cleanup--do'."
 
   (if (not org-id-track-globally)
       (insert "\n\nThe variable `org-id-track-globally' is not set, therefore this assistant cannot be useful and will not continue.\n")
 
     (insert "\nPlease make sure that you have a backup, if something goes wrong !\n\nThis assistant cannot do this for you; so please come back when done\nand press this ")
     (insert-button "button" 'action
-                     (lambda (_) (org-id-cleanup--do this-step 'next)))))
+                     (lambda (_) (org-id-cleanup--do 'next)))))
 
 
-(defun org-id-cleanup--step-save (this-step)
-  "Step from `org-id-cleanup--do'.
-Argument THIS-STEP contains name of current step."
+(defun org-id-cleanup--step-save ()
+  "Step from `org-id-cleanup--do'."
   
   (insert "You need to save all org buffers and update org-id locations: ")
 
@@ -257,15 +211,18 @@ Argument THIS-STEP contains name of current step."
      (redisplay)
      (org-id-update-id-locations)
      ;; continue with next step
-     (org-id-cleanup--do this-step 'next))))
+     (org-id-cleanup--do 'next))))
 
 
-(defun org-id-cleanup--step-complete-files (this-step files)
-  "Step from `org-id--cleanup-do.
-Argument THIS-STEP contains name of current step, FILES is list of files to present to user for completion."
-  (let ((head-of-files "--- start of extra files ---"))
-    (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length files)))
-    (org-id-cleanup--insert-files files)
+(defun org-id-cleanup--step-complete-files ()
+  "Step from `org-id--cleanup-do'."
+  (let* ((head-of-files "--- start of extra files to be scanned ---")
+         (tail-of-files "---  end  of extra files to be scanned ---")
+         (preset-files
+          (org-id-cleanup--normalize-files
+           org-id-files user-init-file custom-file)))
+    (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length preset-files)))
+    (org-id-cleanup--insert-files preset-files)
 
     (insert "\n\nPlease make sure, that this list is complete, i.e. includes all files that:\n\n"
             " - Contain nodes with IDs            (which will be removed if not referenced)\n"
@@ -274,111 +231,77 @@ Argument THIS-STEP contains name of current step, FILES is list of files to pres
     (insert "\n\nPlease note: If the list above is incomplete regarding the second aspect,\nthis will probably lead to IDs being removed, that are still referenced\nfrom a file missing in the list.")
     (fill-paragraph)
 
-    (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to list them anywhere within your org-files.")
+    (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to list them anywhere within your org-files (e.g. below a dedicated heading 'protected IDs'). ")
     (fill-paragraph)
 
-    (insert "\n\nFinally, you might have the habit of using IDs completely outside of org (e.g. in your calendar); such use cannot be noticed by this package, and if there are no other references from within org, such IDs will be deleted. But again, to protect these IDs, it is enough to list them anywhere within your org-files.")
+    (insert "\n\nMoreover, you might have the habit of using IDs completely outside of org (e.g. in your calendar); such use cannot be noticed by this package, and if there are no other references from within org, these IDs will be deleted. But again, to protect those, it is enough to list them anywhere within your org-files.")
     (fill-paragraph)
 
-    (insert "\n\nTo add files or directories to this list and only for this assistant, please ")
+    (insert "\n\nPlease note, that regarding archives, this assistant relies on the handling configured for org-id in `org-id-search-archives'.")
+    (fill-paragraph)
+    
+    (insert "\n\nIf you want more files to be scanned, please add the to the list of extra files below and ")
     (insert-button
      "browse" 'action
      (lambda (_)
-       (let ((file (read-file-name "Choose a single files or a whole directory: " org-directory)))
+       (let ((file (read-file-name "Choose a single files or a whole directory: " org-directory))
+             pt)
          (when file
            (setq buffer-read-only nil)
-           (goto-char (point-max))
-           (search-backward head-of-files)
-           (end-of-line)
-           (insert "\n" file)
+           (goto-char (point-min))
+           (search-forward head-of-files)
+           (forward-line 1)
+           (setq pt (point))
+           (search-forward tail-of-files)
+           (forward-line 0)
+           (insert file)
+           (insert "\n")
+           (add-text-properties pt (point) '(inhibit-read-only t))
            (setq buffer-read-only t)))))
+    (insert "\n(usual editing commands (e.g. C-k) apply.)")
     (insert "\n\n" head-of-files "\n")
-    (insert "---  end  of extra files ---\n")
+    (insert tail-of-files "\n")
     (insert "\nAfter doing that, you might want to ")
 
     (insert-button
      "continue" 'action
      (lambda (_)
        ;; change global state
-       (setq org-id-cleanup--all-files
+       (setq org-id-cleanup--files
              (org-id-cleanup--normalize-files
-              files
+              preset-files
               (org-id-cleanup--collect-extra-files head-of-files)))
        ;; continue with next step
-       (org-id-cleanup--do this-step 'next)))))
+       (org-id-cleanup--do 'next)))))
 
 
-(defun org-id-cleanup--step-review-files (this-step files)
-  "Step from `org-id--cleanup-do.
-Argument THIS-STEP contains name of current step, FILES is the list of files to review."
-  (insert (format "Review the list of %d files that will be scanned; the org-file among them might be changed:\n\n" (length files)))
-  (org-id-cleanup--insert-files files)
+(defun org-id-cleanup--step-review-files ()
+  "Step from `org-id--cleanup-do'."
+  (insert (format "Review the list of %d files that will be scanned; the org-file among them might be changed:\n\n" (length org-id-cleanup--files)))
+  (org-id-cleanup--insert-files org-id-cleanup--files)
+  (insert "\n\nThis list contains any extra files or directories you might have added in the previous step.")
   (insert "\n\nWhen satisfied ")
 
   (insert-button
    "continue" 'action
    (lambda (_)
      ;; continue with next step
-     (org-id-cleanup--do this-step 'next))))
+     (org-id-cleanup--do 'next))))
      
 
-(defun org-id-cleanup--step-collect-ids (this-step files)
-  "Step from `org-id--cleanup-do.
-Argument THIS-STEP contains name of current step, FILES is the list of files with IDs."
-  (let ((counters (make-hash-table :test 'equal))
-        (scanned 0)
-        (attach 0)
-        pgreporter unref unref-unattach)
-    (insert (format "Now the relevant %d files will be scanned for IDs.\n\n" (length files)))
-    (insert "Any IDs, that are used for attachment directories will be kept; the same is true,\nif the node is merely tagged as having an attachment.\n\n")
-    (insert "From now on, please refrain from leaving this assistant to create links to IDs, because they would not be taken into account any more.")
-    (fill-paragraph)
-    (insert "\n\nScan files for IDs and ")
+(defun org-id-cleanup--step-collect-ids ()
+  "Step from `org-id--cleanup-do'."
+  (insert (format "Now the relevant %d files will be scanned for IDs.\n\n" (length org-id-cleanup--files)))
+  (insert "Any IDs, that are used for attachment directories will be kept; the same is true,\nif the node is merely tagged as having an attachment.\n\n")
+  (insert "From now on, please refrain from leaving this assistant to create links to IDs, because they would not be taken into account any more.")
+  (fill-paragraph)
+  (insert "\n\nScan files for IDs and ")
 
-    (insert-button
-     "continue" 'action
-     (lambda (_)
-       (let (ids)
-         (maphash (lambda (id _) (push id ids)) org-id-locations)
-         (setq pgreporter (make-progress-reporter (format "Scanning %d files..." (length files)) 1 (length files)))
-         (dolist (file files)
-           (with-current-buffer (find-file-noselect file)
-             (dolist (id ids)
-               (goto-char (point-min))
-               (while (search-forward id nil t)
-                 (cl-incf (gethash id counters 0)))))
-           (progress-reporter-update pgreporter (cl-incf scanned)))
-
-         ;; keep only IDs, that have appeared only once
-         (maphash (lambda (id count) (if (eq count 1) (push id unref))) counters)
-
-         ;; keep only IDs, that are not used in attachment dir
-         (dolist (id unref)
-           (let ((pos (org-id-find id)))
-             (with-current-buffer  (find-file-noselect (car pos))
-               (goto-char (cdr pos))
-               ;; assume id is used in attachments even if only last 12 chars match
-               (if (or (string= (org-attach-dir-from-id id) (org-attach-dir))
-                       (cl-search (substring id -12) (org-attach-dir))
-                       (member "ATTACH" (org-get-tags))
-                       (member "attach" (org-get-tags))
-                       (member org-attach-auto-tag (org-get-tags)))
-                   (cl-incf attach)
-                 (push id unref-unattach)))))
-
-         (progress-reporter-done pgreporter)
-
-         ;; change global state
-         (setq org-id-cleanup--unref-unattach-ids unref-unattach)
-         (setq org-id-cleanup--num-all-ids (length ids))
-         (setq org-id-cleanup--num-attach attach)
-         ;; continue with next step
-         (org-id-cleanup--do this-step 'next))))))
+  (insert-button "continue" 'action 'org-id-cleanup--action-collect-ids))
 
 
-(defun org-id-cleanup--step-review-ids (this-step)
-  "Step from `org-id--cleanup-do'.
-Argument THIS-STEP contains name of current step."
+(defun org-id-cleanup--step-review-ids ()
+  "Step from `org-id--cleanup-do'."
   (let ((head-of-ids "--- List of IDs to be deleted ---")
         pt pt2 pct)
     (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
@@ -397,7 +320,7 @@ Argument THIS-STEP contains name of current step."
        ;; change global state
        (setq org-id-cleanup--unref-unattach-ids (org-id-cleanup--collect-ids head-of-ids))
        ;; continue with next step
-       (org-id-cleanup--do this-step 'next)))
+       (org-id-cleanup--do 'next)))
 
     (setq pt (point))
     (insert "\n\n(deletion will not happen yet.)")
@@ -410,12 +333,9 @@ Argument THIS-STEP contains name of current step."
     (local-set-key (kbd "<tab>") 'org-id-cleanup--peek-into-id)))
 
 
-(defun org-id-cleanup--step-cleanup-ids (this-step ids)
-  "Step from `org-id--cleanup-do.
-Argument THIS-STEP contains name of current step, IDS given ids to remove."
-
-  (let ((scanned 0)
-        pgreporter pt)
+(defun org-id-cleanup--step-cleanup-ids ()
+  "Step from `org-id--cleanup-do'."
+  (let (pt)
     (insert "Please make sure, that you have not manually created new links referencing any IDs while the last two steps of this assistant were active.")
     (fill-paragraph)
     (insert
@@ -424,43 +344,14 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
     (fill-paragraph)
     (insert (propertize (format "\n\n\n  >>>  To REMOVE %s IDs out of %d UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids) 'face 'org-warning))
     
-    (insert-button
-     "button" 'action
-     (lambda (_)
-       (org-id-cleanup--open-log (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids)
-       (setq buffer-read-only nil)
-       (goto-char (point-max))
-       (setq org-id-cleanup--num-deleted-ids 0)
-       (insert "\n\nRemoving unused IDs ... ")
-       (redisplay)
-       (setq pgreporter (make-progress-reporter (format "Removing %d IDs..." (length org-id-cleanup--unref-unattach-ids)) 1 (length org-id-cleanup--unref-unattach-ids)))
-
-       (dolist (id ids)
-         (pop-to-buffer (find-file-noselect (gethash id org-id-locations)))
-         (goto-char (point-min))
-         (search-forward id)
-         (unless (string= id (org-id-get))
-           (error "Expected id of this node to be %s, but found %s" id (org-id-get)))
-         (org-id-cleanup--append-to-log id (buffer-file-name) (point) (-concat (org-get-outline-path) (list (nth 4 (org-heading-components)))))
-         (org-delete-property "ID")
-         (cl-incf org-id-cleanup--num-deleted-ids)
-         (progress-reporter-update pgreporter (cl-incf scanned)))
-
-       (progress-reporter-done pgreporter)
-       (org-id-cleanup--write-log)
-       (sleep-for 1)
-
-       ;; change global state
-       (setq org-id-cleanup--unref-unattach-ids nil)
-
-       ;; continue with next step
-       (org-id-cleanup--do this-step 'next)))
+    (insert-button "button" 'action 'org-id-cleanup--action-cleanup-ids)
+    
     (insert (propertize "  <<<" 'face 'org-warning))
     (setq pt (point))
     (insert "\n\n\nOr, to review those IDs, go ")
     (insert-button
      "back" 'action
-     (lambda (_) (org-id-cleanup--do this-step 'previous)))
+     (lambda (_) (org-id-cleanup--do 'previous)))
     (insert "\n")
     (goto-char pt)))
 
@@ -486,13 +377,104 @@ Argument THIS-STEP contains name of current step, IDS given ids to remove."
      (org-save-all-org-buffers)
      (insert "done\nUpdating ids ... ")
      (redisplay)
-     (org-id-update-id-locations org-id-cleanup--all-files)
+     (org-id-update-id-locations org-id-cleanup--files)
      (insert "done\nSaving id locations ...")
      (redisplay)
      (org-id-locations-save)
      
      (insert "done\n\nAssistant done.\n")
      (setq buffer-read-only t))))
+
+
+;; Some steps have longer actions, that need their own function
+(defun org-id-cleanup--action-collect-ids (_)
+  "Action for `org-id-cleanup--step-collect-ids.
+Collect ids not referenced from anywhere; the list of IDs will then be used in the next step"
+  (let ((counters (make-hash-table :test 'equal))
+        (scanned 0)
+        (attach 0)
+        ids pgreporter unref unref-unattach)
+
+    ;; collect all IDs
+    (maphash (lambda (id _) (push id ids)) org-id-locations)
+    (setq pgreporter (make-progress-reporter (format "Scanning %d files..." (length org-id-cleanup--files)) 1 (length org-id-cleanup--files)))
+
+    ;; visit each file an count occurrences of IDs
+    (dolist (file org-id-cleanup--files)
+      (with-current-buffer (find-file-noselect file)
+        (dolist (id ids)
+          (goto-char (point-min))
+          (while (search-forward id nil t)
+            (cl-incf (gethash id counters 0)))))
+      (progress-reporter-update pgreporter (cl-incf scanned)))
+
+    ;; keep only IDs, that have appeared only once
+    (maphash (lambda (id count) (if (eq count 1) (push id unref))) counters)
+
+    ;; keep only IDs, that are not used in attachment dir
+    (dolist (id unref)
+      (let ((pos (org-id-find id)))
+        (with-current-buffer  (find-file-noselect (car pos))
+          (goto-char (cdr pos))
+          ;; assume id is used in attachments even if only last 12 chars match
+          (if (or (string= (org-attach-dir-from-id id) (org-attach-dir))
+                  (cl-search (substring id -12) (org-attach-dir))
+                  (member "ATTACH" (org-get-tags))
+                  (member "attach" (org-get-tags))
+                  (member org-attach-auto-tag (org-get-tags)))
+              (cl-incf attach)
+            (push id unref-unattach)))))
+
+    (progress-reporter-done pgreporter)
+
+    ;; change global state
+    (setq org-id-cleanup--unref-unattach-ids unref-unattach)
+    (setq org-id-cleanup--num-all-ids (length ids))
+    (setq org-id-cleanup--num-attach attach)
+    ;; continue with next step
+    (org-id-cleanup--do 'next)))
+
+
+(defun org-id-cleanup--action-cleanup-ids (_)
+  "Action for `org-id-cleanup--step-cleanup-ids.
+Actually delete IDs."
+
+  (let ((scanned 0)
+        pgreporter)
+    ;; prepare
+    (org-id-cleanup--open-log (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids)
+    (setq buffer-read-only nil)
+    (goto-char (point-max))
+    (setq org-id-cleanup--num-deleted-ids 0)
+    (insert "\n\nRemoving unused IDs ... ")
+    (redisplay)
+    (setq pgreporter (make-progress-reporter (format "Removing %d IDs..." (length org-id-cleanup--unref-unattach-ids)) 1 (length org-id-cleanup--unref-unattach-ids)))
+
+    ;; loop of deletion
+    (dolist (id org-id-cleanup--unref-unattach-ids)
+      (pop-to-buffer (find-file-noselect (gethash id org-id-locations)))
+      (goto-char (point-min))
+      (search-forward id)
+      ;; by prior computation, id should only appear once as the id property of a node; anything else is an internal error
+      (unless (string= id (org-id-get))
+        (error "Expected id of this node to be %s, but found %s" id (org-id-get)))
+      ;; log first
+      (org-id-cleanup--append-to-log id (buffer-file-name) (point) (-concat (org-get-outline-path) (list (nth 4 (org-heading-components)))))
+      ;; then delete
+      (org-delete-property "ID")
+      (cl-incf org-id-cleanup--num-deleted-ids)
+      (progress-reporter-update pgreporter (cl-incf scanned)))
+
+    (progress-reporter-done pgreporter)
+    (org-id-cleanup--write-log)
+    (sleep-for 1)
+
+    ;; change global state
+    (setq org-id-cleanup--unref-unattach-ids nil)
+
+    ;; continue with next step
+    (org-id-cleanup--do 'next)))
+
 
 
 ;; Some helper functions
@@ -529,7 +511,7 @@ Argument HEAD is a marker-string that precedes the list of files in buffer."
 
 
 (defun org-id-cleanup--collect-ids (head)
-  "Collect and return edited list of IDs.
+  "Collect and return edited list of IDs from content of buffer.
 Argument HEAD is a marker-string, that precedes the list of ids in buffer."
   (let ((sample-uuid (org-id-uuid))
         id ids)
@@ -565,19 +547,21 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
     (message "Context of node with id %s" id)))
 
 
-(defun org-id-cleanup--step-to-num (step)
-  "Return number of current STEP within list of all steps (counting from 0)."
+(defun org-id-cleanup--step-to-num (&optional step)
+  "Return number of current STEP (defaults to `org-id-cleanup--current-step') within list of all steps (counting from 0)."
+  (unless step
+    (setq step org-id-cleanup--current-step))
   (- (length org-id-cleanup--all-steps)
      (length (member step org-id-cleanup--all-steps))))
 
 
-(defun org-id-cleanup--normalize-files (&rest lists)
-  "Bring a list of LISTS of filenames in standard form by sorting, removing dups and mapping to true filename."
+(defun org-id-cleanup--normalize-files (&rest lists-or-strings)
+  "Bring a LISTS-OR-STRINGS of filenames in standard form.
+By sorting, removing dups and mapping to true filename."
   (delete-consecutive-dups
    (sort
     (mapcar #'file-truename
-            (-flatten
-             lists))
+            (-flatten lists-or-strings))
     'string<)))
 
 
