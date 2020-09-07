@@ -71,7 +71,7 @@
   (oidclpt-with-test-setup
     (let (ids)
 	(org-id-cleanup)
-      (oidclpt-press-button "button")
+      (oidclpt-press-button "press this button")
       (oidclpt-press-button "go")
       (goto-char (point-min))
       (search-forward "--- start")
@@ -151,7 +151,7 @@
   (setq oidclpt-work-buffer nil))
 
 
-(defun oidclpt-press-button (text &optional)
+(defun oidclpt-press-button (text)
   "Press the first button with this text"
   (let (found)
     (goto-char (point-min))

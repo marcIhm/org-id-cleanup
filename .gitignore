@@ -1,11 +1,9 @@
-org-id-cleanup.elc
+*.elc
+*.new
 \#*#
 .#*
 *~
-org-id-cleanup.el.backup
-org-id-cleanup.el.new
-ChangeLog.org.backup
-README.org.backup
 elpa
 org-id-locations-for-test
 oidclpt-ert-work.org
+backup

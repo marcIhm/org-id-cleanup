@@ -1,7 +1,11 @@
-elisp_source: org-id-cleanup.el
-package_name: org-id-cleanup
-copy_changelog: false
-valid_keys:
+source: org-id-cleanup.el
+package: org-id-cleanup
+required_pieces_commentary:
   - Purpose
   - Setup
-  
+pieces_for_docstring:
+  - Purpose
+testfile: oidclpt.el
+
+# Maybe override this in rake_config_no_git.yml
+rake_be_symlink: false

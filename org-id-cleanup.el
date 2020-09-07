@@ -104,7 +104,7 @@
   ;; be overwritten with Commentary-section from beginning of this file.
   ;; Editing after version number is fine.
   ;;
-  ;; For Rake: Insert purpose here
+  ;; For Rake: Insert here
   "Interactively find and clean up unused IDs of org-id.
 The term 'unused' refers to IDs, that have been created by org-id
 regularly, but are now no longer referenced from anywhere within in org.
@@ -416,8 +416,9 @@ Collect ids not referenced from anywhere; the list of IDs will then be used in t
       (let ((pos (org-id-find id)))
         (with-current-buffer  (find-file-noselect (car pos))
           (goto-char (cdr pos))
-          ;; assume id is used in attachments even if only last 12 chars match
-          (if (or (string= (org-attach-dir-from-id id) (org-attach-dir))
+          (if (or (and (fboundp 'org-attach-dir-from-id) ; only known in emacs 27
+		       (string= (org-attach-dir-from-id id) (org-attach-dir)))
+		  ;; assume id is used in attachments even if only last 12 chars match
                   (cl-search (substring id -12) (org-attach-dir))
                   (member "ATTACH" (org-get-tags))
                   (member "attach" (org-get-tags))

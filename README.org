@@ -89,23 +89,22 @@
     - Clarification regarding archives
     - Rely ony org-id-files
     - Refactoring
-  
+
 *** 1.3
 
     - Write a log of deleted IDs
-  
+
 *** 1.2
 
     - Adding tests
     - Preparing for melpa
-  
+
 *** 1.1
 
     - Respecting attachments
     - Refactoring
-  
+
 *** 1.0
 
     - Initial Version
-  
 
