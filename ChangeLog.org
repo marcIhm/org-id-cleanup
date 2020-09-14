@@ -1,4 +1,4 @@
-* 1.4 until 2020-09-07 Mo
+* 1.4 until 2020-09-14 Mo
 
   - Clarification regarding archives
   - Rely ony org-id-files
