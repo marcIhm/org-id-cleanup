@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 1.5.0.
+  The current version is 1.5.1.
 
 ** Table of Contents
 
@@ -78,7 +78,7 @@
     - Run rake to copy those pieces of information into 
       README.org and ChangeLog.org
     - git add/commit as appropriate 
-    - $v=x.y.z ; git tag -a -m $v $v ; git push ; git push --tags
+    - v=x.y.z ; git tag -a -m $v $v ; git push ; git push --tags
 
 ** Latest Change Log
 
@@ -88,6 +88,7 @@
 
     - Scan more files for IDs
     - Write list of files to log
+    - Offer to revert all changes
     - More hints
 
 *** 1.4

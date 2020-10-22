@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.5.0
+;; Version: 1.5.1
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -53,6 +53,7 @@
 ;;
 ;;   - Scan more files for IDs
 ;;   - Write list of files to log
+;;   - Offer to revert all changes
 ;;   - More hints
 ;;
 ;;   Version 1.4
@@ -90,8 +91,9 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.5.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.5.1" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
+(defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--current-step nil "Current step in assistant.")
 (defvar org-id-cleanup--files nil "List of all files to be scanned while cleaning ids.")
@@ -122,7 +124,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.5.0 of org-id-cleanup.el.
+This is version 1.5.1 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -144,7 +146,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
           go-to))
   
   ;; prepare buffer
-  (pop-to-buffer-same-window (get-buffer-create "*Assistant for deleting IDs*"))
+  (pop-to-buffer-same-window (get-buffer-create org-id-cleanup--assistant-buffer-name))
   (setq buffer-read-only nil)
   (delete-other-windows)
   (erase-buffer)
@@ -219,6 +221,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
      (insert "done\nUpdating id locations ... ")
      (redisplay)
      (org-id-update-id-locations)
+     (setq buffer-read-only t)
      ;; continue with next step
      (org-id-cleanup--do 'next))))
 
@@ -385,6 +388,10 @@ GO-TO the next step or one of symbols 'previous or 'next."
    "browse" 'action
    (lambda (_) (pop-to-buffer org-id-cleanup--log-buffer)))
   (insert " this file to see, what has been removed from your org-buffers but not saved yet.\n")
+  (insert "\nIf unsure, you may still revert all changes done by this assistant, as the files have not been saved yet: ")
+  (insert-button
+   "revert all changes" 'action 'org-id-cleanup--action-revert)
+       
   (insert "\n\n\nFinally, if satisfied, you should again save all org buffers, update id locations and save them: ")
 
   (insert-button
@@ -464,11 +471,12 @@ Actually delete IDs."
         pgreporter)
     ;; prepare
     (org-id-cleanup--open-log (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids)
-    (setq buffer-read-only nil)
-    (goto-char (point-max))
-    (setq org-id-cleanup--num-deleted-ids 0)
-    (insert "\n\nRemoving unused IDs ... ")
-    (redisplay)
+    (with-current-buffer org-id-cleanup--assistant-buffer-name
+      (setq buffer-read-only nil)
+      (goto-char (point-max))
+      (setq org-id-cleanup--num-deleted-ids 0)
+      (insert "\n\nRemoving unused IDs ... ")
+      (redisplay))
     (setq pgreporter (make-progress-reporter (format "Removing %d IDs..." (length org-id-cleanup--unref-unattach-ids)) 1 (length org-id-cleanup--unref-unattach-ids)))
 
     ;; loop of deletion
@@ -489,12 +497,42 @@ Actually delete IDs."
     (progress-reporter-done pgreporter)
     (org-id-cleanup--write-log)
     (sleep-for 1)
-
+    (setq buffer-read-only t)
+    
     ;; change global state
     (setq org-id-cleanup--unref-unattach-ids nil)
 
     ;; continue with next step
     (org-id-cleanup--do 'next)))
+
+
+(defun org-id-cleanup--action-revert (_)
+  "Revert all changes done by assistant."
+   (let ((num 0) fname txt)
+     (dolist (buf (buffer-list))
+       (setq fname (buffer-file-name buf))
+       (when (and fname
+                  (buffer-modified-p buf)
+                  (file-readable-p fname)
+                  (member fname org-id-cleanup--files))
+         (with-current-buffer buf
+           (with-demoted-errors "Error: %S"
+             (revert-buffer t t)
+             (cl-incf num)))))
+     (message "Reverted all files.")
+     (with-current-buffer org-id-cleanup--log-buffer
+       (goto-char (point-max))
+       (org-up-heading-all 1)
+       (org-next-visible-heading 1)
+       (setq txt (with-temp-buffer
+                   (insert (format "  - Reverted changes to %d files at " num))
+                   (org-insert-time-stamp nil t t)
+                   (buffer-string)))
+       (insert txt "\n\n"))
+     (with-current-buffer org-id-cleanup--assistant-buffer-name
+       (goto-char (point-max))
+       (let ((inhibit-read-only t))
+         (insert "\n\n" txt)))))
 
 
 
@@ -597,7 +635,7 @@ NUM-TO-BE-DELETED and NUM-ALL used for explanation."
     (org-insert-time-stamp nil t t)
     (insert (format " scanned %d files and deleted %d IDs out of %d\n" (length org-id-cleanup--files) num-to-be-deleted num-all))
     (insert "\n** List of files scanned\n\n")
-    (mapc (lambda (name) (insert (format "  - %s\n" name))) (sort org-id-cleanup--files 'string<))
+    (mapc (lambda (name) (insert (format "   - %s\n" name))) (sort org-id-cleanup--files 'string<))
     (insert "\n** List of IDs deleted\n\n")
     (save-buffer)))
 
@@ -607,12 +645,12 @@ NUM-TO-BE-DELETED and NUM-ALL used for explanation."
 ID, FILENAME, POINT and PATH specify detailed location of the id deleted."
   (with-current-buffer org-id-cleanup--log-buffer
     (insert "\n")
-    (insert (format "  - ID :: %s\n" id))
-    (insert (format "    - Filename :: %s\n" filename))
-    (insert (format "    - Point :: %d\n" point))
+    (insert (format "   - ID :: %s\n" id))
+    (insert (format "     - Filename :: %s\n" filename))
+    (insert (format "     - Point :: %d\n" point))
     (insert "    - Path to node:\n")
     (dolist (ti path)
-      (insert (format "      - %s\n" ti)))))
+      (insert (format "       - %s\n" ti)))))
 
 
 (defun org-id-cleanup--write-log ()
