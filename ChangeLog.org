@@ -1,7 +1,13 @@
+* 1.5 until 2020-10-22 Th
+
+  - Scan more files for IDs
+  - Write list of files to log
+  - More hints
+
 * 1.4 until 2020-09-14 Mo
 
   - Clarification regarding archives
-  - Rely ony org-id-files
+  - Rely on org-id-files
   - Refactoring
 
 * 1.3 until 2020-05-23 Sa

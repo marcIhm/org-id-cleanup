@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.4.0
+;; Version: 1.5.0
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -49,10 +49,16 @@
 
 ;;; Change Log:
 
+;;   Version 1.5
+;;
+;;   - Scan more files for IDs
+;;   - Write list of files to log
+;;   - More hints
+;;
 ;;   Version 1.4
 ;;
 ;;   - Clarification regarding archives
-;;   - Rely ony org-id-files
+;;   - Rely on org-id-files
 ;;   - Refactoring
 ;;
 ;;   Version 1.3
@@ -84,7 +90,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.4.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.5.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--current-step nil "Current step in assistant.")
@@ -93,7 +99,6 @@
 (defvar org-id-cleanup--num-deleted-ids 0 "Number of IDs deleted.")
 (defvar org-id-cleanup--num-attach 0 "Number of IDs that are referenced by their attachment directory only.")
 (defvar org-id-cleanup--num-all-ids 0 "Number of all IDs.")
-(defvar org-id-cleanup--log-buffer-name "Log of IDs deleted by org-id-cleanup" "Name of buffer where log changes will be written.")
 (defvar org-id-cleanup--log-file-name (concat (file-name-directory org-id-locations-file) "org-id-cleanup-log-of-deletions.org")
  "Filename for log buffer; derived from value of 'org-id-locations-file'.")
 (defvar org-id-cleanup--log-buffer nil "Log buffer, once opened.")
@@ -117,7 +122,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.4.0 of org-id-cleanup.el.
+This is version 1.5.0 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -158,6 +163,10 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (insert "It operates in steps, and explains what is going to happen in each step; it presents buttons, that when pressed execute the described action and take you to the next step. Pressing a button can be done either with the return-key or with the mouse.")
     (fill-paragraph)
     (insert "\n\n")
+    (when (fboundp 'org-working-set)
+      (insert "Note: You have loaded the package org-working-set. If you use it regularly you may want to truncate its journal to a reasonable length (e.g. 90 days back), becaues it keeps links to all nodes that have been in your working-set in the past; that way the related IDs can not be deleted, because they are referenced at least once.")
+      (fill-paragraph)
+      (insert "\n\n"))
     (insert "The line of steps at the top of this window shows the progress within this assistant. No IDs will be deleted unless you confirm so in step 'cleanup-ids'")
     (fill-paragraph)
     (insert "\n\n"))
@@ -172,7 +181,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
      (lambda (_) (org-id-cleanup--do 'previous)))
     (insert ")"))
   (insert "\n\n")
-  
+
   ;; dispatch according to step
   (funcall (intern (concat "org-id-cleanup--step-" (symbol-name org-id-cleanup--current-step))))
 
@@ -220,7 +229,13 @@ GO-TO the next step or one of symbols 'previous or 'next."
          (tail-of-files "---  end  of extra files to be scanned ---")
          (preset-files
           (org-id-cleanup--normalize-files
-           org-id-files user-init-file custom-file)))
+           ;; this mirrors the list of files constructed in org-id-update-id-locations
+           (org-agenda-files t org-id-search-archives)
+           (unless (symbolp org-id-extra-files)
+	     org-id-extra-files)
+           org-id-files
+           user-init-file
+           custom-file)))
     (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length preset-files)))
     (org-id-cleanup--insert-files preset-files)
 
@@ -228,7 +243,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
             " - Contain nodes with IDs            (which will be removed if not referenced)\n"
             " - Have references or links to IDs   (which protect those IDs from being removed)\n\n"
             "(of course, most of your org-files may contain both)")
-    (insert "\n\nPlease note: If the list above is incomplete regarding the second aspect,\nthis will probably lead to IDs being removed, that are still referenced\nfrom a file missing in the list.")
+    (insert "\n\nPlease note: If the list above is incomplete, this might lead to IDs being removed, that are still referenced from a file missing in the list.")
     (fill-paragraph)
 
     (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to list them anywhere within your org-files (e.g. below a dedicated heading 'protected IDs'). ")
@@ -240,7 +255,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (insert "\n\nPlease note, that regarding archives, this assistant relies on the handling configured for org-id in `org-id-search-archives'.")
     (fill-paragraph)
     
-    (insert "\n\nIf you want more files to be scanned, please add the to the list of extra files below and ")
+    (insert "\n\nIf you want more files or directories to be scanned, please add the to the list of extra files below and ")
     (insert-button
      "browse" 'action
      (lambda (_)
@@ -307,8 +322,12 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
     (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
     (insert "You may remove IDs from the list as you like to keep them from being deleted.\nUsual editing commands (e.g. C-k) apply.")
+    (insert "\n\nIf the list if IDs below is longer than expected, the list of files to be scanned might have been incomplete and you may want to ")
+    (insert-button "add files to be scanned" 'action
+                   (lambda (_) (org-id-cleanup--do 'complete-files)))
+    (fill-paragraph)
     (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
-    (when (< pct 20)
+    (when (< pct 10)
       (insert (format "\n\nThere are %d IDs to be deleted among total %d. This is a percentage of %.1f %% only. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
       (fill-paragraph))
     (insert "\n\nIf satisfied ")
@@ -342,7 +361,8 @@ GO-TO the next step or one of symbols 'previous or 'next."
      (format "\n\nFor your reference, a log of all changes will be appended to %s.\n" org-id-cleanup--log-file-name)
      "This log will contain sufficient information (id, filename, point and outline path) to manually restore selected IDs later; you may browse it before saving your files in the last step.")
     (fill-paragraph)
-    (insert (propertize (format "\n\n\n  >>>  To REMOVE %s IDs out of %d UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids) 'face 'org-warning))
+    (insert "\n\n\n")
+    (insert (propertize (format "  >>>  To REMOVE %s IDs out of %d UNCONDITIONALLY, press this " (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids) 'face 'org-warning))
     
     (insert-button "button" 'action 'org-id-cleanup--action-cleanup-ids)
     
@@ -573,10 +593,12 @@ NUM-TO-BE-DELETED and NUM-ALL used for explanation."
   (with-current-buffer org-id-cleanup--log-buffer
     (goto-char (point-max))
     (org-mode)
-    (insert "\n\n* Log of IDs deleted by org-id-cleanup at ")
+    (insert "\n\n* org-id-cleanup at ")
     (org-insert-time-stamp nil t t)
-    (insert "\n\n")
-    (insert (format "  Deleting %d IDs out of %d.\n" num-to-be-deleted num-all))
+    (insert (format " scanned %d files and deleted %d IDs out of %d\n" (length org-id-cleanup--files) num-to-be-deleted num-all))
+    (insert "\n** List of files scanned\n\n")
+    (mapc (lambda (name) (insert (format "  - %s\n" name))) (sort org-id-cleanup--files 'string<))
+    (insert "\n** List of IDs deleted\n\n")
     (save-buffer)))
 
 
