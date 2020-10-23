@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.5.1
+;; Version: 1.5.2
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -91,7 +91,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.5.1" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.5.2" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
 (defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
@@ -124,7 +124,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.5.1 of org-id-cleanup.el.
+This is version 1.5.2 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -214,14 +214,13 @@ GO-TO the next step or one of symbols 'previous or 'next."
    "go" 'action
    (lambda (_)
      (goto-char (point-max))
-     (setq buffer-read-only nil)
-     (insert "\n\nSaving buffers ... ")
-     (redisplay)
-     (org-save-all-org-buffers)
-     (insert "done\nUpdating id locations ... ")
-     (redisplay)
-     (org-id-update-id-locations)
-     (setq buffer-read-only t)
+     (let ((inhibit-read-only t))
+       (insert "\n\nSaving buffers ... ")
+       (redisplay)
+       (org-save-all-org-buffers)
+       (insert "done\nUpdating id locations ... ")
+       (redisplay)
+       (org-id-update-id-locations))
      ;; continue with next step
      (org-id-cleanup--do 'next))))
 
@@ -263,9 +262,9 @@ GO-TO the next step or one of symbols 'previous or 'next."
      "browse" 'action
      (lambda (_)
        (let ((file (read-file-name "Choose a single files or a whole directory: " org-directory))
+             (inhibit-read-only t)
              pt)
          (when file
-           (setq buffer-read-only nil)
            (goto-char (point-min))
            (search-forward head-of-files)
            (forward-line 1)
@@ -274,8 +273,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
            (forward-line 0)
            (insert file)
            (insert "\n")
-           (add-text-properties pt (point) '(inhibit-read-only t))
-           (setq buffer-read-only t)))))
+           (add-text-properties pt (point) '(inhibit-read-only t))))))
     (insert "\n(usual editing commands (e.g. C-k) apply.)")
     (insert "\n\n" head-of-files "\n")
     (insert tail-of-files "\n")
@@ -328,6 +326,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (insert "\n\nIf the list if IDs below is longer than expected, the list of files to be scanned might have been incomplete and you may want to ")
     (insert-button "add files to be scanned" 'action
                    (lambda (_) (org-id-cleanup--do 'complete-files)))
+    (insert " for references to IDs.")
     (fill-paragraph)
     (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
     (when (< pct 10)
@@ -388,29 +387,29 @@ GO-TO the next step or one of symbols 'previous or 'next."
    "browse" 'action
    (lambda (_) (pop-to-buffer org-id-cleanup--log-buffer)))
   (insert " this file to see, what has been removed from your org-buffers but not saved yet.\n")
-  (insert "\nIf unsure, you may still revert all changes done by this assistant, as the files have not been saved yet: ")
+  (insert "If you want to discard those changes alltogether, you may ")
   (insert-button
-   "revert all changes" 'action 'org-id-cleanup--action-revert)
+   "revert all" 'action 'org-id-cleanup--action-revert)
+  (insert " changed org buffers, as the files have not been saved yet.")
        
   (insert "\n\n\nFinally, if satisfied, you should again save all org buffers, update id locations and save them: ")
 
   (insert-button
    "go" 'action
    (lambda (_)
-     (setq buffer-read-only nil)
-     (goto-char (point-max))
-     (insert "\n\nSaving buffers ... ")
-     (redisplay)
-     (org-save-all-org-buffers)
-     (insert "done\nUpdating ids ... ")
-     (redisplay)
-     (org-id-update-id-locations org-id-cleanup--files)
-     (insert "done\nSaving id locations ...")
-     (redisplay)
-     (org-id-locations-save)
-     
-     (insert "done\n\nAssistant done.\n")
-     (setq buffer-read-only t))))
+     (let ((inhibit-read-only t))
+       (goto-char (point-max))
+       (insert "\n\nSaving buffers ... ")
+       (redisplay)
+       (org-save-all-org-buffers)
+       (insert "done\nUpdating ids ... ")
+       (redisplay)
+       (org-id-update-id-locations org-id-cleanup--files)
+       (insert "done\nSaving id locations ...")
+       (redisplay)
+       (org-id-locations-save)
+       
+       (insert "done\n\nAssistant done.\n")))))
 
 
 ;; Some steps have longer actions, that need their own function
@@ -468,11 +467,11 @@ Collect ids not referenced from anywhere; the list of IDs will then be used in t
 Actually delete IDs."
 
   (let ((scanned 0)
+        (inhibit-read-only t)
         pgreporter)
     ;; prepare
     (org-id-cleanup--open-log (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids)
     (with-current-buffer org-id-cleanup--assistant-buffer-name
-      (setq buffer-read-only nil)
       (goto-char (point-max))
       (setq org-id-cleanup--num-deleted-ids 0)
       (insert "\n\nRemoving unused IDs ... ")
@@ -497,7 +496,6 @@ Actually delete IDs."
     (progress-reporter-done pgreporter)
     (org-id-cleanup--write-log)
     (sleep-for 1)
-    (setq buffer-read-only t)
     
     ;; change global state
     (setq org-id-cleanup--unref-unattach-ids nil)
@@ -519,16 +517,16 @@ Actually delete IDs."
            (with-demoted-errors "Error: %S"
              (revert-buffer t t)
              (cl-incf num)))))
-     (message "Reverted all files.")
+     (message "Reverted changes to %d files" num)
+     (setq txt (with-temp-buffer
+                 (insert (format "Reverted changes to %d files at " num))
+                 (org-insert-time-stamp nil t t)
+                 (buffer-string)))
      (with-current-buffer org-id-cleanup--log-buffer
        (goto-char (point-max))
        (org-up-heading-all 1)
        (org-next-visible-heading 1)
-       (setq txt (with-temp-buffer
-                   (insert (format "  - Reverted changes to %d files at " num))
-                   (org-insert-time-stamp nil t t)
-                   (buffer-string)))
-       (insert txt "\n\n"))
+       (insert "  - " txt "\n\n"))
      (with-current-buffer org-id-cleanup--assistant-buffer-name
        (goto-char (point-max))
        (let ((inhibit-read-only t))
