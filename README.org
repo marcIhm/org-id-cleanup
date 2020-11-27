@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 1.5.2.
+  The current version is 1.5.3.
 
 ** Table of Contents
 

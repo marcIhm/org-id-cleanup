@@ -71,8 +71,8 @@
   (oidclpt-with-test-setup
     (let (ids)
 	(org-id-cleanup)
-      (oidclpt-press-button "press this button")
       (oidclpt-press-button "go")
+      (oidclpt-press-button "press this button")
       (goto-char (point-min))
       (search-forward "--- start")
       (end-of-line)

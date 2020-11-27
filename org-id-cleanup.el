@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.5.2
+;; Version: 1.5.3
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -91,10 +91,10 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.5.2" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.5.3" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
-(defvar org-id-cleanup--all-steps '(backup save complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
+(defvar org-id-cleanup--all-steps '(save backup complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
 (defvar org-id-cleanup--current-step nil "Current step in assistant.")
 (defvar org-id-cleanup--files nil "List of all files to be scanned while cleaning ids.")
 (defvar org-id-cleanup--unref-unattach-ids nil "List of IDs not referenced from files and not having attachments.  Candidates for deletion.")
@@ -124,13 +124,13 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.5.2 of org-id-cleanup.el.
+This is version 1.5.3 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
 carefully and then operate the relevant buttons."
   (interactive)
-  (org-id-cleanup--do 'backup))
+  (org-id-cleanup--do 'save))
 
 
 (defun org-id-cleanup--do (go-to)
@@ -296,6 +296,18 @@ GO-TO the next step or one of symbols 'previous or 'next."
   (insert (format "Review the list of %d files that will be scanned; the org-file among them might be changed:\n\n" (length org-id-cleanup--files)))
   (org-id-cleanup--insert-files org-id-cleanup--files)
   (insert "\n\nThis list contains any extra files or directories you might have added in the previous step.")
+  (insert "\n\nIf you want to compare this list (or just its length) with previous invocations, you may ")
+  (insert-button
+   "browse" 'action
+   (lambda (_)
+     (find-file-other-window org-id-cleanup--log-file-name)
+     (with-selected-window (get-buffer-window (get-file-buffer org-id-cleanup--log-file-name))
+       (org-set-startup-visibility)
+       (goto-char (point-max))
+       (recenter -2))))
+  (insert " the log and compare the counts from each headline.")
+  (fill-paragraph)
+
   (insert "\n\nWhen satisfied ")
 
   (insert-button
@@ -320,15 +332,15 @@ GO-TO the next step or one of symbols 'previous or 'next."
   "Step from `org-id--cleanup-do'."
   (let ((head-of-ids "--- List of IDs to be deleted ---")
         pt pt2 pct)
+    (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
     (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
     (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
     (insert "You may remove IDs from the list as you like to keep them from being deleted.\nUsual editing commands (e.g. C-k) apply.")
-    (insert "\n\nIf the list if IDs below is longer than expected, the list of files to be scanned might have been incomplete and you may want to ")
+    (insert (format "\n\nThe list below contains %.1f %% of all IDs; if this is more than expected, the list of files to be scanned might have been incomplete and you may want to " pct))
     (insert-button "add files to be scanned" 'action
                    (lambda (_) (org-id-cleanup--do 'complete-files)))
     (insert " for references to IDs.")
     (fill-paragraph)
-    (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
     (when (< pct 10)
       (insert (format "\n\nThere are %d IDs to be deleted among total %d. This is a percentage of %.1f %% only. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
       (fill-paragraph))
@@ -391,6 +403,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
   (insert-button
    "revert all" 'action 'org-id-cleanup--action-revert)
   (insert " changed org buffers, as the files have not been saved yet.")
+  (fill-paragraph)
        
   (insert "\n\n\nFinally, if satisfied, you should again save all org buffers, update id locations and save them: ")
 
@@ -570,8 +583,7 @@ Argument HEAD is a marker-string that precedes the list of files in buffer."
 (defun org-id-cleanup--collect-ids (head)
   "Collect and return edited list of IDs from content of buffer.
 Argument HEAD is a marker-string, that precedes the list of ids in buffer."
-  (let ((sample-uuid (org-id-uuid))
-        id ids)
+  (let (id ids)
     (goto-char (point-min))
     (search-forward head)
     (delete-trailing-whitespace (point) (point-max))
@@ -579,7 +591,7 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
     (while (not (= (point) (point-max)))
       (setq id (string-trim (buffer-substring (point-at-bol) (point-at-eol))))
       (when (> (length id) 0)
-        (unless (= (length id) (length sample-uuid))
+        (unless (>= (length id) 12) ; 12 is the length of an org-generated id, uuidgen generates longer ids
           (error "Id %s does not seem to be a valid uuid" id))
         (push id ids))
       (forward-line))
@@ -634,7 +646,7 @@ NUM-TO-BE-DELETED and NUM-ALL used for explanation."
     (insert (format " scanned %d files and deleted %d IDs out of %d\n" (length org-id-cleanup--files) num-to-be-deleted num-all))
     (insert "\n** List of files scanned\n\n")
     (mapc (lambda (name) (insert (format "   - %s\n" name))) (sort org-id-cleanup--files 'string<))
-    (insert "\n** List of IDs deleted\n\n")
+    (insert "\n** List of IDs deleted\n")
     (save-buffer)))
 
 
@@ -648,7 +660,8 @@ ID, FILENAME, POINT and PATH specify detailed location of the id deleted."
     (insert (format "     - Point :: %d\n" point))
     (insert "    - Path to node:\n")
     (dolist (ti path)
-      (insert (format "       - %s\n" ti)))))
+      (insert (format "       - %s\n" ti)))
+    (delete-blank-lines)))
 
 
 (defun org-id-cleanup--write-log ()
