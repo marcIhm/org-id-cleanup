@@ -1,10 +1,10 @@
 ;;; org-id-cleanup.el --- Interactively find, present and maybe clean up unused IDs of org-id     -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.5.3
+;; Version: 1.5.5
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -91,7 +91,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.5.3" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.5.5" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
 (defvar org-id-cleanup--all-steps '(save backup complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
@@ -124,7 +124,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.5.3 of org-id-cleanup.el.
+This is version 1.5.5 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -503,6 +503,7 @@ Actually delete IDs."
       (org-id-cleanup--append-to-log id (buffer-file-name) (point) (-concat (org-get-outline-path) (list (nth 4 (org-heading-components)))))
       ;; then delete
       (org-delete-property "ID")
+      (org-remove-empty-drawer-at (point))
       (cl-incf org-id-cleanup--num-deleted-ids)
       (progress-reporter-update pgreporter (cl-incf scanned)))
 
@@ -645,7 +646,8 @@ NUM-TO-BE-DELETED and NUM-ALL used for explanation."
     (org-insert-time-stamp nil t t)
     (insert (format " scanned %d files and deleted %d IDs out of %d\n" (length org-id-cleanup--files) num-to-be-deleted num-all))
     (insert "\n** List of files scanned\n\n")
-    (mapc (lambda (name) (insert (format "   - %s\n" name))) (sort org-id-cleanup--files 'string<))
+    (let ((i 0))
+      (mapc (lambda (name) (insert (format "   - %d : %s\n" (cl-incf i) name))) (sort org-id-cleanup--files 'string<)))
     (insert "\n** List of IDs deleted\n")
     (save-buffer)))
 
