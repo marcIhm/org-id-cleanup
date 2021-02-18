@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.5.5
+;; Version: 1.5.6
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -91,7 +91,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.5.5" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.5.6" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
 (defvar org-id-cleanup--all-steps '(save backup complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
@@ -124,7 +124,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.5.5 of org-id-cleanup.el.
+This is version 1.5.6 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -242,10 +242,10 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (org-id-cleanup--insert-files preset-files)
 
     (insert "\n\nPlease make sure, that this list is complete, i.e. includes all files that:\n\n"
-            " - Contain nodes with IDs            (which will be removed if not referenced)\n"
+            " - Contain nodes with IDs            (which will be removed, if not referenced from anywhere)\n"
             " - Have references or links to IDs   (which protect those IDs from being removed)\n\n"
             "(of course, most of your org-files may contain both)")
-    (insert "\n\nPlease note: If the list above is incomplete, this might lead to IDs being removed, that are still referenced from a file missing in the list.")
+    (insert "\n\nPlease note: If the list above is incomplete, this might lead to IDs being removed, that are still referenced from a file that is missing in the list.")
     (fill-paragraph)
 
     (insert "\n\nIDs may also appear in lisp-files, so your user init file has already been added. But if you use IDs from within other lisp-code, this will not be noticed. However, to protect such IDs once and for all, it is enough to list them anywhere within your org-files (e.g. below a dedicated heading 'protected IDs'). ")
@@ -305,7 +305,9 @@ GO-TO the next step or one of symbols 'previous or 'next."
        (org-set-startup-visibility)
        (goto-char (point-max))
        (recenter -2))))
-  (insert " the log and compare the counts from each headline.")
+  (insert (format " the log and compare the counts from each headline; latest headline is: %s; you may e.g. compare the number of files scanned previously with the current number of %d files."
+                  (propertize (org-id-cleanup--get-latest-log-heading) 'face 'org-agenda-dimmed-todo-face)
+                  (length org-id-cleanup--files)))
   (fill-paragraph)
 
   (insert "\n\nWhen satisfied ")
@@ -342,7 +344,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (insert " for references to IDs.")
     (fill-paragraph)
     (when (< pct 10)
-      (insert (format "\n\nThere are %d IDs to be deleted among total %d. This is a percentage of %.1f %% only. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
+      (insert (format "\n\nThere are %d IDs to be deleted among total %d. This is a percentage of %.1f %% only. By deleting them you will not notice much of a difference and you may well skip the rest of this assistant altogether. However deletion probably does no harm either, epecially if you do this as part of a regular maintainance." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids pct))
       (fill-paragraph))
     (insert "\n\nIf satisfied ")
 
@@ -633,6 +635,19 @@ By sorting, removing dups and mapping to true filename."
     (mapcar #'file-truename
             (-flatten lists-or-strings))
     'string<)))
+
+
+(defun org-id-cleanup--get-latest-log-heading ()
+  "Get latest heading from log buffer."
+  (or (ignore-errors
+        (save-window-excursion
+          (save-current-buffer
+            (find-file org-id-cleanup--log-file-name)
+            (goto-char (point-max))
+            (if (re-search-backward "^\* " nil t)
+                (org-get-heading t t t t)
+              nil))))
+      "no prior heading"))
 
 
 (defun org-id-cleanup--open-log (num-to-be-deleted num-all)
