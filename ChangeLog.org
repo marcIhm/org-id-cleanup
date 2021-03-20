@@ -1,4 +1,4 @@
-* 1.5 until 2021-02-18 Th
+* 1.5 until 2021-03-20 Sa
 
   - Scan more files for IDs
   - Write list of files to log
