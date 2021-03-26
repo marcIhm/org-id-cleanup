@@ -4,7 +4,7 @@
 
 ;; Author: Marc Ihm <1@2484.de>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.5.7
+;; Version: 1.6.0
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -48,6 +48,11 @@
 
 ;;; Change Log:
 
+;;   Version 1.6
+;;
+;;   - Restructured instructions
+;;   - Various clarifications
+;;
 ;;   Version 1.5
 ;;
 ;;   - Scan more files for IDs
@@ -90,7 +95,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.5.7" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.6.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
 (defvar org-id-cleanup--all-steps '(save backup complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
@@ -123,7 +128,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.5.7 of org-id-cleanup.el.
+This is version 1.6.0 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them

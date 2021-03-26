@@ -1,3 +1,8 @@
+* 1.6 until 2021-03-26 Fr
+
+  - Restructured instructions
+  - Various clarifications
+
 * 1.5 until 2021-03-20 Sa
 
   - Scan more files for IDs
