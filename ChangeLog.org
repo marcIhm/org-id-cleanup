@@ -1,4 +1,9 @@
-* 1.6 until 2021-03-26 Fr
+* 1.7 until 2021-06-18 Fr
+
+  - Compute differences to previous invocation and offer files to be
+    added back
+
+* 1.6 until 2021-05-24 Mo
 
   - Restructured instructions
   - Various clarifications

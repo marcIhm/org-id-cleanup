@@ -88,7 +88,7 @@
       (oidclpt-press-button "button")
       (oidclpt-press-button "go")
       (goto-char (point-min))
-      (search-forward "Assistant done.")
+      (search-forward "Assistant done;")
       (with-current-buffer oidclpt-work-buffer
 	(setq ids (oidclpt--collect-ids-from-properties)))
       (should (= (length ids) 3))

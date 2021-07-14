@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 1.6.0.
+  The current version is 1.7.0.
 
 ** Table of Contents
 
@@ -83,6 +83,11 @@
 ** Latest Change Log
 
    See ChangeLog.org for older entries.
+
+*** 1.7
+
+    - Compute differences to previous invocation and offer files to be
+      added back
 
 *** 1.6
 
