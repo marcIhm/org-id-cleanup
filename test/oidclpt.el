@@ -83,7 +83,7 @@
 	(oidclpt-press-button "continue"))
       (setq ids (oidclpt--collect-ids-from-list "--- List of"))
       (should (= (length ids) 1))
-      (should (string= (nth 0 ids) (nth 3 oidclpt-ids)))
+      (should (string= (car (split-string (nth 0 ids))) (nth 3 oidclpt-ids)))
       (oidclpt-press-button "continue")
       (oidclpt-press-button "button")
       (oidclpt-press-button "go")

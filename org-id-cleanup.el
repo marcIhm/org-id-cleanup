@@ -1,10 +1,10 @@
 ;;; org-id-cleanup.el --- Interactively find, present and maybe clean up unused IDs of org-id     -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
-;; Author: Marc Ihm <1@2484.de>
+;; Author: Marc Ihm <marc@ihm.name>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
-;; Version: 1.7.0
+;; Version: 1.7.1
 ;; Package-Requires: ((org "9.3") (dash "2.12") (emacs "26.3"))
 
 ;; This file is not part of GNU Emacs.
@@ -52,6 +52,7 @@
 ;;
 ;;   - Compute differences to previous invocation and offer files to be
 ;;     added back
+;;   - Show headings along with IDs for deletion
 ;;
 ;;   Version 1.6
 ;;
@@ -278,8 +279,7 @@ GO-TO the next step or one of symbols 'previous or 'next."
            (setq pt (point))
            (search-forward tail-of-files)
            (forward-line 0)
-           (insert file)
-           (insert "\n")
+           (insert file "\n")
            (add-text-properties pt (point) '(inhibit-read-only t))))))
     (insert "\n\n" head-of-files "\n")
     (setq pt (point))
@@ -370,8 +370,9 @@ GO-TO the next step or one of symbols 'previous or 'next."
   (let ((head-of-ids "--- List of IDs to be deleted ---")
         pt pt2 pct)
     (setq pct (* 100 (/ (float (length org-id-cleanup--unref-unattach-ids)) org-id-cleanup--num-all-ids)))
-    (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node.\n" (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
-    (insert (format "%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
+    (insert (format "Find below the list of IDs (%d out of %d) that will be deleted; pressing TAB on an id will show the respective node. To provide context, the associated headings are shown (but of course, will not be deleted)." (length org-id-cleanup--unref-unattach-ids) org-id-cleanup--num-all-ids))
+    (fill-paragraph)
+    (insert (format "\n%d IDs are not in the list and will be kept, because they have associated attachments.\n\n" org-id-cleanup--num-attach))
     (insert "You may remove IDs from the list as you like to keep them from being deleted.\nUsual editing commands (e.g. C-k) apply.")
     (insert (format "\n\nThe list below contains %.1f %% of all IDs; if this is more than expected, the list of files to be scanned might have been incomplete and you may want to " pct))
     (insert-button "add files to be scanned" 'action
@@ -394,7 +395,12 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (insert "\n\n\n" head-of-ids "\n")
     (setq pt2 (point))
     (dolist (id org-id-cleanup--unref-unattach-ids)
-      (insert id "\n"))
+      (insert id "   "
+              (save-window-excursion
+                (org-id-goto id)
+                (propertize (or (org-get-heading) "?") 'face 'org-agenda-dimmed-todo-face))
+              "\n"))
+    
     (add-text-properties pt2 (point) '(inhibit-read-only t))
     (goto-char pt)
     (local-set-key (kbd "<tab>") 'org-id-cleanup--peek-into-id)))
@@ -636,7 +642,7 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
     (delete-trailing-whitespace (point) (point-max))
     (forward-line)
     (while (not (= (point) (point-max)))
-      (setq id (string-trim (buffer-substring (point-at-bol) (point-at-eol))))
+      (setq id (car (split-string (string-trim (buffer-substring (point-at-bol) (point-at-eol))))))
       (when (> (length id) 0)
         (unless (>= (length id) 12) ; 12 is the length of an org-generated id, uuidgen generates longer ids
           (error "Id %s does not seem to be a valid uuid" id))
@@ -648,7 +654,7 @@ Argument HEAD is a marker-string, that precedes the list of ids in buffer."
 (defun org-id-cleanup--peek-into-id ()
   "Show node with if of current line in other window."
   (interactive)
-  (let* ((id (string-trim (buffer-substring (point-at-bol) (point-at-eol))))
+  (let* ((id (car (split-string (string-trim (buffer-substring (point-at-bol) (point-at-eol))))))
          (marker (org-id-find id t)))
     (unless marker
       (error "Cannot find ID %s" id))
