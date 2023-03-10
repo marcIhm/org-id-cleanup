@@ -1,6 +1,6 @@
 ;;; org-id-cleanup.el --- Interactively find, present and maybe clean up unused IDs of org-id     -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2023 Free Software Foundation, Inc.
 
 ;; Author: Marc Ihm <marc@ihm.name>
 ;; URL: https://github.com/marcIhm/org-id-cleanup
@@ -43,7 +43,7 @@
 ;;
 ;; Setup:
 ;;
-;;  org-id-cleanup should be installed with package.el
+;;  org-id-cleanup should be installed with package.el or use-package
 ;;
 
 ;;; Change Log:
@@ -101,7 +101,7 @@
 (require 'org-id)
 
 ;; Version of this package
-(defvar org-id-cleanup-version "1.7.0" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
+(defvar org-id-cleanup-version "1.7.1" "Version of `org-working-set', format is major.minor.bugfix, where \"major\" are incompatible changes and \"minor\" are new features.")
 
 (defvar org-id-cleanup--assistant-buffer-name "*Assistant for deleting IDs*")
 (defvar org-id-cleanup--all-steps '(save backup complete-files review-files collect-ids review-ids cleanup-ids save-again) "List of all supported steps.")
@@ -134,7 +134,7 @@ However, some usage patterns or packages (like org-working-set) may
 produce a larger number of such unused IDs; in such cases it might be
 helpful to clean up with org-id-cleanup.
 
-This is version 1.7.0 of org-id-cleanup.el.
+This is version 1.7.1 of org-id-cleanup.el.
 
 This assistant is the only interactive function of this package.
 Detailed explanations are shown in each step; please read them
@@ -261,7 +261,9 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (forward-line -2)
     (insert (propertize "Scroll down for continue-button.\n\n" 'face 'org-agenda-dimmed-todo-face))
     (setq pt2 (point))
-    (insert (format "Complete the list of %d files that will be scanned and might be changed:\n\n" (length preset-files)))
+    (insert (concat "Complete the list of "
+                    (propertize (number-to-string (length preset-files)) 'face 'bold)
+                    " files that will be scanned and might be changed:\n\n"))
     (org-id-cleanup--insert-files preset-files)
     (insert "\n\nSee the end of this screen to learn, what files should be present in the list above.")
     
@@ -329,6 +331,19 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (goto-char pt2)))
 
 
+(defun org-id-cleanup--step-collect-ids ()
+  "Step from `org-id--cleanup-do'."
+  (insert (concat "Now the relevant "
+                  (propertize (number-to-string (length org-id-cleanup--files)) 'face 'bold)
+                  " files will be scanned for IDs.\n\n"))
+  (insert "Any IDs, that are used for attachment directories will be kept; the same is true,\nif the node is merely tagged as having an attachment.\n\n")
+  (insert "From now on, please refrain from leaving this assistant to create links to IDs, because they would not be taken into account any more.")
+  (fill-paragraph)
+  (insert "\n\n\nScan files for IDs and ")
+
+  (insert-button "continue" 'action 'org-id-cleanup--action-collect-ids))
+
+
 (defun org-id-cleanup--step-review-files ()
   "Step from `org-id--cleanup-do'."
   (let ((text-point-files (org-id-cleanup--get-latest-log-heading))
@@ -336,7 +351,9 @@ GO-TO the next step or one of symbols 'previous or 'next."
     (forward-line -2)
     (insert (propertize "Scroll down for continue-button.\n\n" 'face 'org-agenda-dimmed-todo-face))
     (setq pt (point))
-    (insert (format "Review the list of %d files that will be scanned; the org-file among them might be changed:\n\n" (length org-id-cleanup--files)))
+    (insert (concat "Review the list of "
+                    (propertize (number-to-string (length org-id-cleanup--files)) 'face 'bold)
+                    " files that will be scanned; the org-files among them might be changed:\n\n"))
     (org-id-cleanup--insert-files org-id-cleanup--files)
     (insert "\n\nThis list contains any extra files or directories you might have added in the previous step.")
     (insert "\n\n\nIf you want to compare this list with previous invocations, you may browse:\n\n  ")
@@ -352,17 +369,6 @@ GO-TO the next step or one of symbols 'previous or 'next."
      (propertize "back" 'face 'org-agenda-dimmed-todo-face) 'action
      (lambda (_) (org-id-cleanup--do 'previous)))
     (goto-char pt)))
-     
-
-(defun org-id-cleanup--step-collect-ids ()
-  "Step from `org-id--cleanup-do'."
-  (insert (format "Now the relevant %d files will be scanned for IDs.\n\n" (length org-id-cleanup--files)))
-  (insert "Any IDs, that are used for attachment directories will be kept; the same is true,\nif the node is merely tagged as having an attachment.\n\n")
-  (insert "From now on, please refrain from leaving this assistant to create links to IDs, because they would not be taken into account any more.")
-  (fill-paragraph)
-  (insert "\n\n\nScan files for IDs and ")
-
-  (insert-button "continue" 'action 'org-id-cleanup--action-collect-ids))
 
 
 (defun org-id-cleanup--step-review-ids ()

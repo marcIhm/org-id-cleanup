@@ -6,7 +6,7 @@
 
   Read below for a description.
 
-  The current version is 1.7.0.
+  The current version is 1.7.1.
 
 ** Table of Contents
 
@@ -39,7 +39,7 @@
 
 *** Setup
 
-    org-id-cleanup should be installed with package.el
+    org-id-cleanup should be installed with package.el or use-package
 
 ** Files
 
@@ -88,6 +88,7 @@
 
     - Compute differences to previous invocation and offer files to be
       added back
+    - Show headings along with IDs for deletion
 
 *** 1.6
 
