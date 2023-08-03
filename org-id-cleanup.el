@@ -1,4 +1,4 @@
-;;; org-id-cleanup.el --- Interactively find, present and maybe clean up unused IDs of org-id     -*- lexical-binding: t; -*-
+;;; org-id-cleanup.el --- Interactively find, present and maybe delete unused IDs of org-id     -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020-2023 Free Software Foundation, Inc.
 
