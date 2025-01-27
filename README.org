@@ -1,4 +1,4 @@
-* TODO org-id-cleanup 
+* org-id-cleanup 
 
   Interactively cleanup unreferenced IDs of org-id.
   
